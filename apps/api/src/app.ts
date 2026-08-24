@@ -5,6 +5,7 @@ import organizationRouter from "./modules/organization/organization.routes.js"
 import userRouter from "./modules/user/user.routes.js";
 import { errorHandler } from "./infrastructure/http/error-handler.js";
 import dataSourceRouter from "./modules/data-source/data-source.routes.js";
+import metadataRouter from "./modules/metadata/metadata.routes.js";
 
 export function createApp(): Express {
   const app = express();
@@ -12,6 +13,7 @@ export function createApp(): Express {
   app.use(express.json());
 
   app.use(errorHandler);
+  app.use(metadataRouter);
 
   app.use("/health", healthRouter);
   app.use("/organizations", organizationRouter);
