@@ -1,0 +1,105 @@
+import { describe, expect, it } from "vitest";
+import { validateReadOnlySql } from "../query.validator.js";
+
+describe("validateReadOnlySql", () => {
+  it("allows a SELECT query", () => {
+    expect(
+      validateReadOnlySql("SELECT * FROM customers"),
+    ).toBe("SELECT * FROM customers");
+  });
+
+  it("allows a SELECT query with a trailing semicolon", () => {
+    expect(
+      validateReadOnlySql("SELECT * FROM customers;"),
+    ).toBe("SELECT * FROM customers");
+  });
+
+  it("rejects DELETE", () => {
+    expect(() =>
+      validateReadOnlySql(
+        "DELETE FROM customers WHERE id = 1",
+      ),
+    ).toThrow("Only SELECT queries are allowed");
+  });
+
+  it("rejects UPDATE", () => {
+    expect(() =>
+      validateReadOnlySql(
+        "UPDATE customers SET name = 'Evil'",
+      ),
+    ).toThrow("Only SELECT queries are allowed");
+  });
+
+  it("rejects DROP", () => {
+    expect(() =>
+      validateReadOnlySql("DROP TABLE customers"),
+    ).toThrow("Only SELECT queries are allowed");
+  });
+
+  it("rejects multiple statements", () => {
+    expect(() =>
+      validateReadOnlySql(
+        "SELECT * FROM customers; SELECT * FROM customers",
+      ),
+    ).toThrow("Multiple SQL statements are not allowed");
+  });
+
+  it("rejects invalid SQL", () => {
+    expect(() =>
+      validateReadOnlySql("THIS IS NOT SQL"),
+    ).toThrow("Invalid SQL query");
+  });
+
+  it("rejects an empty query", () => {
+    expect(() => validateReadOnlySql("")).toThrow(
+      "SQL query is required",
+    );
+  });
+  it("allows SELECT with WHERE", () => {
+  expect(
+    validateReadOnlySql(
+      "SELECT id, name FROM customers WHERE id = 1",
+    ),
+  ).toBe(
+    "SELECT id, name FROM customers WHERE id = 1",
+  );
+});
+
+it("allows SELECT with ORDER BY", () => {
+  expect(
+    validateReadOnlySql(
+      "SELECT id, name FROM customers ORDER BY name",
+    ),
+  ).toBe(
+    "SELECT id, name FROM customers ORDER BY name",
+  );
+});
+
+it("allows SELECT with LIMIT", () => {
+  expect(
+    validateReadOnlySql(
+      "SELECT id, name FROM customers LIMIT 10",
+    ),
+  ).toBe(
+    "SELECT id, name FROM customers LIMIT 10",
+  );
+});
+
+it("allows SELECT with JOIN", () => {
+  expect(
+    validateReadOnlySql(
+      `
+        SELECT c.id, c.name
+        FROM customers c
+        JOIN customers c2 ON c.id = c2.id
+      `,
+    ),
+  ).toBe(
+    `
+        SELECT c.id, c.name
+        FROM customers c
+        JOIN customers c2 ON c.id = c2.id
+      `.trim(),
+  );
+});
+});
