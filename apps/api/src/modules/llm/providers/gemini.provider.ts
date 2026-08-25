@@ -4,6 +4,7 @@ import type {
   LlmGenerateRequest,
   LlmGenerateResponse,
   LlmProvider,
+  LlmStructuredGenerateRequest,
 } from "../llm.types.js";
 
 export class GeminiProvider implements LlmProvider {
@@ -33,4 +34,29 @@ export class GeminiProvider implements LlmProvider {
       content: response.text ?? "",
     };
   }
+
+  async generateStructured<T>(
+  request: LlmStructuredGenerateRequest,
+): Promise<T> {
+  const response =
+    await this.client.models.generateContent({
+      model: this.model,
+      contents: request.userPrompt,
+      config: {
+        systemInstruction: request.systemPrompt,
+        responseMimeType: "application/json",
+        responseSchema: request.responseSchema,
+      },
+    });
+
+  const content = response.text;
+
+  if (!content) {
+    throw new Error(
+      "LLM returned an empty structured response",
+    );
+  }
+
+  return JSON.parse(content) as T;
+}
 }

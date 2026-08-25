@@ -1,6 +1,11 @@
+import { AppError } from "../../infrastructure/http/app-error.js";
+
 import { MetadataService } from "../metadata/metadata.service.js";
 import { createLlmService } from "../llm/llm.factory.js";
 import { QueryService } from "../query/query.service.js";
+
+import { IntentService } from "./intent/intent.service.js";
+import { SqlGenerationService } from "./sql/sql-generation.service.js";
 
 import type {
   AgentQueryRequest,
@@ -8,57 +13,70 @@ import type {
 } from "./agent.types.js";
 
 export class AgentService {
-  constructor(
-    private readonly metadataService = new MetadataService(),
-    private readonly llmService = createLlmService(),
-    private readonly queryService = new QueryService(),
-  ) {}
+  private readonly metadataService: MetadataService;
+  private readonly llmService: ReturnType<typeof createLlmService>;
+  private readonly queryService: QueryService;
+  private readonly intentService: IntentService;
+  private readonly sqlGenerationService: SqlGenerationService;
+
+  constructor() {
+    this.metadataService = new MetadataService();
+    this.llmService = createLlmService();
+    this.queryService = new QueryService();
+    this.sqlGenerationService = new SqlGenerationService(this.llmService);
+    this.intentService = new IntentService(
+      this.llmService,
+    );
+  }
 
   async execute(
     request: AgentQueryRequest,
   ): Promise<AgentQueryResponse> {
+    const intent =
+      await this.intentService.classify(
+        request.question,
+      );
+
+    if (intent === "WRITE_OPERATION") {
+      throw new AppError(
+        "Only read-only data queries are supported",
+        400,
+        "READ_ONLY_OPERATION_REQUIRED",
+      );
+    }
+
+    if (intent === "UNSUPPORTED") {
+      throw new AppError(
+        "This request is not supported by the data agent",
+        400,
+        "UNSUPPORTED_AGENT_REQUEST",
+      );
+    }
+
     const metadata =
       await this.metadataService.getDatabaseMetadata(
         request.dataSourceId,
       );
 
-    const schema = JSON.stringify(metadata, null, 2);
+    const schema = JSON.stringify(
+      metadata,
+      null,
+      2,
+    );
 
-    const response = await this.llmService.generate({
-      systemPrompt: `
-You are a PostgreSQL SQL generation assistant.
+    const sql =
+      await this.sqlGenerationService.generate({
+        question: request.question,
+        schema,
+        intent
+  });
 
-Your job is to convert a user's natural-language question
-into ONE PostgreSQL SELECT query.
 
-Rules:
-- Return ONLY SQL.
-- Generate exactly one SELECT statement.
-- Never generate INSERT, UPDATE, DELETE, DROP, ALTER, CREATE,
-  TRUNCATE, GRANT, REVOKE, or other write operations.
-- Only use tables and columns present in the provided schema.
-- Do not invent tables or columns.
-- Do not include markdown fences.
-- Do not include explanations.
-
-Database schema:
-${schema}
-      `.trim(),
-
-      userPrompt: request.question,
-    });
-
-    const sql = response.content
-      .trim()
-      .replace(/^```sql\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/\s*```$/i, "")
-      .trim();
-
-    const result = await this.queryService.execute({
-      dataSourceId: request.dataSourceId,
-      sql,
-    });
+    const result =
+      await this.queryService.execute({
+        dataSourceId: request.dataSourceId,
+        sql,
+      });
 
     return {
       question: request.question,
