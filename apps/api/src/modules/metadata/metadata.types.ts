@@ -11,7 +11,25 @@ export interface ColumnMetadata {
   nullable: boolean;
 }
 
+export interface PrimaryKeyMetadata {
+  schema: string;
+  table: string;
+  columns: string[];
+}
+
+export interface ForeignKeyMetadata {
+  schema: string;
+  table: string;
+  columns: string[];
+
+  referencedSchema: string;
+  referencedTable: string;
+  referencedColumns: string[];
+}
+
 export interface DatabaseMetadata {
   tables: TableMetadata[];
   columns: ColumnMetadata[];
+  primaryKeys: PrimaryKeyMetadata[];
+  foreignKeys: ForeignKeyMetadata[];
 }

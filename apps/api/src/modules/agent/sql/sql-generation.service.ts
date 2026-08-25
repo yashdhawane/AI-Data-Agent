@@ -1,6 +1,7 @@
 import { AppError } from "../../../infrastructure/http/app-error.js";
 import type { LlmService } from "../../llm/llm.service.js";
 
+
 import type {
   SqlGenerationRequest,
   SqlGenerationResponse,
@@ -9,6 +10,7 @@ import type {
 export class SqlGenerationService {
   constructor(
     private readonly llmService: LlmService,
+
   ) {}
 
   async generate(

@@ -1,9 +1,5 @@
-import type {
-  ColumnMetadata,
-  TableMetadata,
-} from "./metadata.types.js";
+import type { DatabaseMetadata } from "./metadata.types.js";
 
 export interface MetadataProvider {
-  getTables(): Promise<TableMetadata[]>;
-  getColumns(): Promise<ColumnMetadata[]>;
+  getMetadata(): Promise<DatabaseMetadata>;
 }

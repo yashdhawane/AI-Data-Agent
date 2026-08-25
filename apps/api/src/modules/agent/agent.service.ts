@@ -7,6 +7,8 @@ import { QueryService } from "../query/query.service.js";
 import { IntentService } from "./intent/intent.service.js";
 import { SqlGenerationService } from "./sql/sql-generation.service.js";
 
+import { MetadataContextBuilder } from "../metadata/context/metadata-context.builder.js";
+
 import type {
   AgentQueryRequest,
   AgentQueryResponse,
@@ -18,9 +20,11 @@ export class AgentService {
   private readonly queryService: QueryService;
   private readonly intentService: IntentService;
   private readonly sqlGenerationService: SqlGenerationService;
+  private readonly metadataContextBuilder: MetadataContextBuilder;
 
   constructor() {
     this.metadataService = new MetadataService();
+    this.metadataContextBuilder = new MetadataContextBuilder();
     this.llmService = createLlmService();
     this.queryService = new QueryService();
     this.sqlGenerationService = new SqlGenerationService(this.llmService);
@@ -58,11 +62,8 @@ export class AgentService {
         request.dataSourceId,
       );
 
-    const schema = JSON.stringify(
-      metadata,
-      null,
-      2,
-    );
+    const schema =
+  this.metadataContextBuilder.build(metadata);
 
     const sql =
       await this.sqlGenerationService.generate({

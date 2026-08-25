@@ -33,18 +33,10 @@ export class MetadataService {
 
     const connector = new PostgresConnector(connectionUrl);
 
+    const provider = new PostgresMetadataProvider(connector);
+
     try {
-      const provider = new PostgresMetadataProvider(connector);
-
-      const [tables, columns] = await Promise.all([
-        provider.getTables(),
-        provider.getColumns(),
-      ]);
-
-      return {
-        tables,
-        columns,
-      };
+      return await provider.getMetadata();
     } finally {
       await connector.close();
     }
