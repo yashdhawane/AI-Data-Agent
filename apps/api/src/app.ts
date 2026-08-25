@@ -6,7 +6,7 @@ import userRouter from "./modules/user/user.routes.js";
 import dataSourceRouter from "./modules/data-source/data-source.routes.js";
 import metadataRouter from "./modules/metadata/metadata.routes.js";
 import queryRouter from "./modules/query/query.routes.js";
-
+import agentRouter from "./modules/agent/agent.routes.js";
 import { errorHandler } from "./infrastructure/http/error-handler.js";
 
 export function createApp(): Express {
@@ -21,6 +21,7 @@ export function createApp(): Express {
 
   app.use(metadataRouter);
   app.use(queryRouter);
+  app.use(agentRouter);
 
   // MUST BE LAST
   app.use(errorHandler);
