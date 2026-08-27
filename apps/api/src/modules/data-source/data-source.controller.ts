@@ -1,6 +1,7 @@
 import { type Request, type Response } from "express";
 import { DataSourceService } from "./data-source.service.js";
 import { DataSourceConnectionService } from "./data-source.connection.service.js";
+import { DataSourceType } from "../../generated/prisma/enums.js";
 
 const dataSourceService = new DataSourceService();
 const dataSourceConnectionService = new DataSourceConnectionService();
@@ -36,6 +37,17 @@ export async function createDataSource(
     });
     return;
   }
+
+  if (
+  !Object.values(DataSourceType).includes(
+    type.trim() as DataSourceType,
+  )
+) {
+  res.status(400).json({
+    error: `Unsupported data source type: ${type}`,
+  });
+  return;
+}
 
   const dataSource = await dataSourceService.create(
     name.trim(),

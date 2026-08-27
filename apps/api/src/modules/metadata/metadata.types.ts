@@ -1,35 +1,38 @@
-export interface TableMetadata {
-  schema: string;
-  name: string;
+import type { RelationalMetadata } from "./models/relational.types.js";
+
+export interface RelationalDatabaseMetadata {
+  databaseType: string;
+  dataModel: "relational";
+  metadata: RelationalMetadata;
 }
 
-export interface ColumnMetadata {
-  schema: string;
-  table: string;
-  name: string;
-  dataType: string;
-  nullable: boolean;
+export interface DocumentDatabaseMetadata {
+  databaseType: string;
+  dataModel: "document";
+  metadata: unknown;
 }
 
-export interface PrimaryKeyMetadata {
-  schema: string;
-  table: string;
-  columns: string[];
+export interface KeyValueDatabaseMetadata {
+  databaseType: string;
+  dataModel: "key_value";
+  metadata: unknown;
 }
 
-export interface ForeignKeyMetadata {
-  schema: string;
-  table: string;
-  columns: string[];
-
-  referencedSchema: string;
-  referencedTable: string;
-  referencedColumns: string[];
+export interface WideColumnDatabaseMetadata {
+  databaseType: string;
+  dataModel: "wide_column";
+  metadata: unknown;
 }
 
-export interface DatabaseMetadata {
-  tables: TableMetadata[];
-  columns: ColumnMetadata[];
-  primaryKeys: PrimaryKeyMetadata[];
-  foreignKeys: ForeignKeyMetadata[];
+export interface GraphDatabaseMetadata {
+  databaseType: string;
+  dataModel: "graph";
+  metadata: unknown;
 }
+
+export type DatabaseMetadata =
+  | RelationalDatabaseMetadata
+  | DocumentDatabaseMetadata
+  | KeyValueDatabaseMetadata
+  | WideColumnDatabaseMetadata
+  | GraphDatabaseMetadata;

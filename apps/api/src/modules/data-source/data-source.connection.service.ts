@@ -2,6 +2,7 @@ import { getDataSourceConnectionUrl } from "../../infrastructure/database/data-s
 import { PostgresConnector } from "../../infrastructure/connectors/postgres.connector.js";
 import { prisma } from "../../infrastructure/database/prisma.js";
 import { AppError } from "../../infrastructure/http/app-error.js";
+import { error } from "console";
 
 export class DataSourceConnectionService {
   async testConnection(dataSourceId: string): Promise<void> {
@@ -30,7 +31,9 @@ export class DataSourceConnectionService {
 
     try {
         await connector.testConnection();
-    } catch {
+    } catch (error) {
+      console.error("PostgreSQL connection error:", error);
+
             throw new AppError(
                 "Data source connection failed",
                 502,

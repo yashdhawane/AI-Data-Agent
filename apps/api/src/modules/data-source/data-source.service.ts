@@ -1,5 +1,6 @@
 import { prisma } from "../../infrastructure/database/prisma.js";
 import { encrypt } from "../../infrastructure/security/encryption.js";
+import { DataSourceType } from "../../generated/prisma/enums.js";
 
 export class DataSourceService {
   async create(
@@ -13,7 +14,7 @@ export class DataSourceService {
     return prisma.dataSource.create({
       data: {
         name,
-        type,
+        type: type as DataSourceType,
         connectionUrl: encryptedConnectionUrl,
         organization: {
           connect: {

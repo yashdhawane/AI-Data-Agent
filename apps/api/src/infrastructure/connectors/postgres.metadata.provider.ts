@@ -1,12 +1,12 @@
 import type { QueryResultRow } from "pg";
 import type { MetadataProvider } from "../../modules/metadata/metadata.provider.js";
+import type { DatabaseMetadata } from "../../modules/metadata/metadata.types.js";
 import type {
   ColumnMetadata,
-  DatabaseMetadata,
   ForeignKeyMetadata,
   PrimaryKeyMetadata,
   TableMetadata,
-} from "../../modules/metadata/metadata.types.js";
+} from "../../modules/metadata/models/relational.types.js";
 import { PostgresConnector } from "./postgres.connector.js";
 
 interface TableRow extends QueryResultRow {
@@ -38,7 +38,7 @@ interface ForeignKeyRow extends QueryResultRow {
   column_name: string;
 
   foreign_key_ordinal: number;
-  referenced_column_ordinal: number;
+  referenced_column_ordinal: number | null;
 
   referenced_schema: string;
   referenced_table: string;
@@ -64,11 +64,15 @@ export class PostgresMetadataProvider implements MetadataProvider {
     ]);
 
     return {
+    databaseType: "postgresql",
+    dataModel: "relational",
+    metadata: {
       tables,
       columns,
       primaryKeys,
       foreignKeys,
-    };
+  },
+};
   }
 
   private async getTables(): Promise<TableMetadata[]> {

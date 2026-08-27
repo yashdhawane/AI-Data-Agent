@@ -2,6 +2,12 @@ import type { DatabaseMetadata } from "../metadata.types.js";
 
 export class MetadataContextBuilder {
   build(metadata: DatabaseMetadata): string {
+    if (metadata.dataModel !== "relational") {
+      throw new Error(
+        `Metadata context builder does not support data model: ${metadata.dataModel}`,
+      );
+    }
+
     const sections: string[] = [];
 
     sections.push(this.buildTables(metadata));
@@ -12,9 +18,16 @@ export class MetadataContextBuilder {
       .join("\n\n");
   }
 
-  private buildTables(metadata: DatabaseMetadata): string {
-    const tables = metadata.tables.map((table) => {
-      const columns = metadata.columns
+  private buildTables(
+    metadata: Extract<
+      DatabaseMetadata,
+      { dataModel: "relational" }
+    >,
+  ): string {
+    const relationalMetadata = metadata.metadata;
+
+    const tables = relationalMetadata.tables.map((table) => {
+      const columns = relationalMetadata.columns
         .filter(
           (column) =>
             column.schema === table.schema &&
@@ -28,11 +41,12 @@ export class MetadataContextBuilder {
         )
         .join("\n");
 
-      const primaryKey = metadata.primaryKeys.find(
-        (key) =>
-          key.schema === table.schema &&
-          key.table === table.name,
-      );
+      const primaryKey =
+        relationalMetadata.primaryKeys.find(
+          (key) =>
+            key.schema === table.schema &&
+            key.table === table.name,
+        );
 
       const primaryKeyLine = primaryKey
         ? `  PRIMARY KEY: ${primaryKey.columns.join(", ")}`
@@ -55,13 +69,19 @@ export class MetadataContextBuilder {
   }
 
   private buildRelationships(
-    metadata: DatabaseMetadata,
+    metadata: Extract<
+      DatabaseMetadata,
+      { dataModel: "relational" }
+    >,
   ): string {
-    if (metadata.foreignKeys.length === 0) {
+    const foreignKeys =
+      metadata.metadata.foreignKeys;
+
+    if (foreignKeys.length === 0) {
       return "";
     }
 
-    const relationships = metadata.foreignKeys
+    const relationships = foreignKeys
       .map((foreignKey) => {
         const mappings = foreignKey.columns.map(
           (column, index) => {
