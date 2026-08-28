@@ -34,13 +34,19 @@ describe("MetadataProviderFactory", () => {
     );
   });
 
-  it("throws when MongoDB provider is not implemented yet", () => {
-    expect(() =>
-      MetadataProviderFactory.create(
-        DataSourceType.mongodb,
-      ),
-    ).toThrow(
-      "Unsupported data source type: mongodb",
+  it("creates a MongoDB metadata provider", () => {
+    const provider = MetadataProviderFactory.create(
+      DataSourceType.mongodb,
+      { mongoConnector: {} as any },
+    );
+
+    expect(provider).toBeDefined();
+    expect(provider.constructor.name).toBe("MongoMetadataProvider");
+  });
+
+  it("throws when MongoDB connector is missing", () => {
+    expect(() => MetadataProviderFactory.create(DataSourceType.mongodb)).toThrow(
+      "MongoDB connector is required",
     );
   });
 });

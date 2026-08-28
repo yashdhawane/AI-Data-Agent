@@ -1,5 +1,5 @@
 import { getDataSourceConnectionUrl } from "../../infrastructure/database/data-source-credentials.js";
-import { PostgresConnector } from "../../infrastructure/connectors/postgres.connector.js";
+import { DatabaseConnectorFactory } from "../../infrastructure/connectors/database-connector.factory.js";
 import { prisma } from "../../infrastructure/database/prisma.js";
 import { AppError } from "../../infrastructure/http/app-error.js";
 import { validateReadOnlySql } from "./query.validator.js";
@@ -10,7 +10,7 @@ import type {
 import { applyQueryLimit } from "./query.limit.js";
 
 export class QueryService {
-  async execute(request: QueryRequest): Promise<QueryResult> {
+  async execute(request: QueryRequest, organizationId: string): Promise<QueryResult> {
     const { dataSourceId, sql } = request;
 
     const validatedSql = validateReadOnlySql(sql);
@@ -23,10 +23,11 @@ export class QueryService {
       select: {
         id: true,
         type: true,
+        organizationId: true,
       },
     });
 
-    if (!dataSource) {
+    if (!dataSource || dataSource.organizationId !== organizationId) {
       throw new AppError(
         "Data source not found",
         404,
@@ -45,10 +46,10 @@ export class QueryService {
     const connectionUrl =
       await getDataSourceConnectionUrl(dataSource.id);
 
-    const connector = new PostgresConnector(connectionUrl);
+    const connector = DatabaseConnectorFactory.create(dataSource.type, connectionUrl);
 
     try {
-      const rows = await connector.query<Record<string, unknown>>(
+      const rows = await connector.query(
         safeSql ,
       );
 

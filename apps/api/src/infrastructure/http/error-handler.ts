@@ -7,7 +7,9 @@ export const errorHandler: ErrorRequestHandler = (
   res,
   _next,
 ) => {
-  console.error(err);
+  if (!(err instanceof AppError) || err.statusCode >= 500) {
+    console.error(err);
+  }
 
   if (res.headersSent) {
     return;

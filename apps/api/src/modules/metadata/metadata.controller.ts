@@ -1,10 +1,11 @@
 import { type Request, type Response } from "express";
 import { MetadataService } from "./metadata.service.js";
+import type { AuthenticatedRequest } from "../../infrastructure/security/auth.middleware.js";
 
 const metadataService = new MetadataService();
 
 export async function getDatabaseMetadata(
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
 ): Promise<void> {
   const { id } = req.params;
@@ -16,7 +17,7 @@ export async function getDatabaseMetadata(
     return;
   }
 
-  const metadata = await metadataService.getDatabaseMetadata(id);
+  const metadata = await metadataService.getDatabaseMetadata(id, req.user.organizationId);
 
   res.status(200).json(metadata);
 }

@@ -22,6 +22,28 @@ vi.mock(
   }),
 );
 
+vi.mock(
+  "../../../infrastructure/connectors/postgres.connector.js",
+  () => ({
+    PostgresConnector: class {
+      testConnection = vi.fn().mockResolvedValue(undefined);
+      close = vi.fn().mockResolvedValue(undefined);
+    },
+  }),
+);
+
+vi.mock(
+  "../../../infrastructure/connectors/database-connector.factory.js",
+  () => ({
+    DatabaseConnectorFactory: {
+      create: vi.fn(() => ({
+        testConnection: vi.fn().mockResolvedValue(undefined),
+        close: vi.fn().mockResolvedValue(undefined),
+      })),
+    },
+  }),
+);
+
 import { DataSourceService } from "../data-source.service.js";
 
 describe("DataSourceService", () => {

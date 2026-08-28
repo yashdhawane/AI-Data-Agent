@@ -5,6 +5,7 @@ export class OrganizationService {
     return prisma.organization.create({
       data: {
         name,
+        normalizedName: name.trim().toLowerCase(),
       },
     });
   }

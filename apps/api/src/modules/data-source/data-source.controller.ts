@@ -2,12 +2,21 @@ import { type Request, type Response } from "express";
 import { DataSourceService } from "./data-source.service.js";
 import { DataSourceConnectionService } from "./data-source.connection.service.js";
 import { DataSourceType } from "../../generated/prisma/enums.js";
+import type { AuthenticatedRequest } from "../../infrastructure/security/auth.middleware.js";
+import { AppError } from "../../infrastructure/http/app-error.js";
 
 const dataSourceService = new DataSourceService();
 const dataSourceConnectionService = new DataSourceConnectionService();
 
+export async function listDataSources(
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> {
+  res.status(200).json(await dataSourceService.list(req.user.organizationId));
+}
+
 export async function createDataSource(
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
 ): Promise<void> {
   const {
@@ -29,8 +38,8 @@ export async function createDataSource(
     type.trim().length === 0 ||
     typeof connectionUrl !== "string" ||
     connectionUrl.trim().length === 0 ||
-    typeof organizationId !== "string" ||
-    organizationId.trim().length === 0
+    (typeof organizationId !== "string" || organizationId.trim().length === 0) &&
+    !req.user
   ) {
     res.status(400).json({
       error: "name, type, connectionUrl and organizationId are required",
@@ -53,7 +62,7 @@ export async function createDataSource(
     name.trim(),
     type.trim(),
     connectionUrl.trim(),
-    organizationId.trim(),
+    req.user?.organizationId ?? (organizationId as string).trim(),
   );
 
   const { connectionUrl: _connectionUrl, ...safeDataSource } = dataSource;
@@ -62,7 +71,7 @@ export async function createDataSource(
 }
 
 export async function testDataSourceConnection(
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
 ): Promise<void> {
   const { id } = req.params;
@@ -74,9 +83,22 @@ export async function testDataSourceConnection(
   return;
 }
 
-  await dataSourceConnectionService.testConnection(id);
+  await dataSourceConnectionService.testConnection(id, req.user.organizationId);
 
   res.status(200).json({
     status: "connected",
   });
+}
+
+export async function deleteDataSource(
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> {
+  const { id } = req.params;
+  if (typeof id !== "string" || id.trim().length === 0) {
+    throw new AppError("Data source id is required", 400, "DATA_SOURCE_ID_REQUIRED");
+  }
+
+  await dataSourceService.remove(id, req.user.organizationId);
+  res.status(204).send();
 }

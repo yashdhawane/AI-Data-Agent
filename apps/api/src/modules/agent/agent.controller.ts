@@ -1,10 +1,11 @@
 import { type Request, type Response } from "express";
 import { AgentService } from "./agent.service.js";
+import type { AuthenticatedRequest } from "../../infrastructure/security/auth.middleware.js";
 
 const agentService = new AgentService();
 
 export async function executeAgentQuery(
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
 ): Promise<void> {
   const { dataSourceId, question } = req.body as {
@@ -35,7 +36,7 @@ export async function executeAgentQuery(
   const result = await agentService.execute({
     dataSourceId: dataSourceId.trim(),
     question: question.trim(),
-  });
+  }, req.user.organizationId);
 
   res.status(200).json(result);
 }

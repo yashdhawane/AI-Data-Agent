@@ -1,8 +1,10 @@
 import express, { type Router } from "express";
-import { createUser } from "./user.controller.js";
+import { createUser, listUsers } from "./user.controller.js";
+import { requireAdmin } from "../../infrastructure/security/auth.middleware.js";
 
 const router: Router = express.Router();
 
-router.post("/", createUser);
+router.get("/", listUsers);
+router.post("/", requireAdmin, createUser);
 
 export default router;

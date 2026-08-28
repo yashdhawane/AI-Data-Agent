@@ -1,10 +1,11 @@
 import { type Request, type Response } from "express";
 import { QueryService } from "./query.service.js";
+import type { AuthenticatedRequest } from "../../infrastructure/security/auth.middleware.js";
 
 const queryService = new QueryService();
 
 export async function executeQuery(
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
 ): Promise<void> {
   const { dataSourceId, sql } = req.body as {
@@ -32,7 +33,7 @@ export async function executeQuery(
   const result = await queryService.execute({
     dataSourceId: dataSourceId.trim(),
     sql: sql.trim(),
-  });
+  }, req.user.organizationId);
 
   res.status(200).json(result);
 }

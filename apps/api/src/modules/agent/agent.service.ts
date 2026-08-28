@@ -35,6 +35,7 @@ export class AgentService {
 
   async execute(
     request: AgentQueryRequest,
+    organizationId: string,
   ): Promise<AgentQueryResponse> {
     const intent =
       await this.intentService.classify(
@@ -60,6 +61,7 @@ export class AgentService {
     const metadata =
       await this.metadataService.getDatabaseMetadata(
         request.dataSourceId,
+        organizationId,
       );
 
     const schema =
@@ -77,7 +79,7 @@ export class AgentService {
       await this.queryService.execute({
         dataSourceId: request.dataSourceId,
         sql,
-      });
+      }, organizationId);
 
     return {
       question: request.question,

@@ -2,9 +2,12 @@ import type { MetadataProvider } from "../metadata.provider.js";
 import { PostgresMetadataProvider } from "../../../infrastructure/connectors/postgres.metadata.provider.js";
 import type { PostgresConnector } from "../../../infrastructure/connectors/postgres.connector.js";
 import { DataSourceType } from "../../../generated/prisma/enums.js";
+import { MongoMetadataProvider } from "../../../infrastructure/connectors/mongo.metadata.provider.js";
+import type { MongoConnector } from "../../../infrastructure/connectors/mongo.connector.js";
 
 export type MetadataProviderDependencies = {
   postgresConnector?: PostgresConnector;
+  mongoConnector?: MongoConnector;
 };
 
 export class MetadataProviderFactory {
@@ -23,6 +26,13 @@ export class MetadataProviderFactory {
         return new PostgresMetadataProvider(
           dependencies.postgresConnector,
         );
+      }
+
+      case DataSourceType.mongodb: {
+        if (!dependencies.mongoConnector) {
+          throw new Error("MongoDB connector is required");
+        }
+        return new MongoMetadataProvider(dependencies.mongoConnector);
       }
 
       default:
