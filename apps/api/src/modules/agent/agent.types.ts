@@ -9,4 +9,12 @@ export interface AgentQueryResponse {
   columns: string[];
   rows: Record<string, unknown>[];
   rowCount: number;
+  insight: {
+    summary: string;
+    facts: string[];
+    inferences: string[];
+    recommendations: string[];
+    unknowns: string[];
+    confidence: "LOW" | "MEDIUM" | "HIGH";
+  };
 }

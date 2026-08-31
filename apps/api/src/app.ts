@@ -9,6 +9,8 @@ import agentRouter from "./modules/agent/agent.routes.js";
 import authRouter from "./modules/auth/auth.routes.js";
 import { authenticate } from "./infrastructure/security/auth.middleware.js";
 import { errorHandler } from "./infrastructure/http/error-handler.js";
+import relationshipRouter from "./modules/relationship/relationship.routes.js";
+import businessContextRouter from "./modules/business-context/business-context.routes.js";
 
 export function createApp(): Express {
   const app = express();
@@ -18,7 +20,7 @@ export function createApp(): Express {
     res.header("Access-Control-Allow-Origin", origin);
     res.header("Access-Control-Allow-Credentials", "true");
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.header("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
     if (req.method === "OPTIONS") {
       res.sendStatus(204);
       return;
@@ -37,6 +39,8 @@ export function createApp(): Express {
   app.use(metadataRouter);
   app.use(queryRouter);
   app.use(agentRouter);
+  app.use(relationshipRouter);
+  app.use(businessContextRouter);
 
   // MUST BE LAST
   app.use(errorHandler);

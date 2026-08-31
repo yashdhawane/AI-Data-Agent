@@ -47,6 +47,9 @@ Rules:
 
 Database schema:
 ${request.schema}
+
+Business context and organization rules:
+${request.businessContext ?? "No business context has been configured."}
         `.trim(),
 
         userPrompt: request.question,

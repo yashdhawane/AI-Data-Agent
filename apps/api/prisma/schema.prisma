@@ -22,6 +22,8 @@ model Organization {
 
   users     User[]
   dataSources DataSource[]
+  relationships DataRelationship[]
+  businessContext BusinessContext?
 }
 
 model User {
@@ -58,4 +60,44 @@ model DataSource {
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceRelationships DataRelationship[] @relation("SourceRelationships")
+  targetRelationships DataRelationship[] @relation("TargetRelationships")
+}
+
+enum RelationshipStatus {
+  DISCOVERED
+  ACCEPTED
+  REJECTED
+}
+
+model DataRelationship {
+  id                  String             @id @default(cuid())
+  organizationId      String
+  sourceDataSourceId  String
+  sourceEntity        String
+  sourceField         String
+  targetDataSourceId  String
+  targetEntity        String
+  targetField         String
+  confidence          Float
+  rationale           String
+  status              RelationshipStatus @default(DISCOVERED)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceDataSource DataSource @relation("SourceRelationships", fields: [sourceDataSourceId], references: [id], onDelete: Cascade)
+  targetDataSource DataSource @relation("TargetRelationships", fields: [targetDataSourceId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+}
+
+model BusinessContext {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  content        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }

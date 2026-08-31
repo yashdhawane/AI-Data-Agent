@@ -8,6 +8,8 @@ import { IntentService } from "./intent/intent.service.js";
 import { SqlGenerationService } from "./sql/sql-generation.service.js";
 
 import { MetadataContextBuilder } from "../metadata/context/metadata-context.builder.js";
+import { BusinessContextService } from "../business-context/business-context.service.js";
+import { InsightService } from "../insight/insight.service.js";
 
 import type {
   AgentQueryRequest,
@@ -21,11 +23,15 @@ export class AgentService {
   private readonly intentService: IntentService;
   private readonly sqlGenerationService: SqlGenerationService;
   private readonly metadataContextBuilder: MetadataContextBuilder;
+  private readonly businessContextService: BusinessContextService;
+  private readonly insightService: InsightService;
 
   constructor() {
     this.metadataService = new MetadataService();
     this.metadataContextBuilder = new MetadataContextBuilder();
+    this.businessContextService = new BusinessContextService();
     this.llmService = createLlmService();
+    this.insightService = new InsightService(this.llmService);
     this.queryService = new QueryService();
     this.sqlGenerationService = new SqlGenerationService(this.llmService);
     this.intentService = new IntentService(
@@ -66,11 +72,13 @@ export class AgentService {
 
     const schema =
   this.metadataContextBuilder.build(metadata);
+    const businessContext = await this.businessContextService.get(organizationId);
 
     const sql =
       await this.sqlGenerationService.generate({
         question: request.question,
         schema,
+        businessContext: businessContext?.content,
         intent
   });
 
@@ -80,11 +88,18 @@ export class AgentService {
         dataSourceId: request.dataSourceId,
         sql,
       }, organizationId);
+    const insight = await this.insightService.generate({
+      question: request.question,
+      sql,
+      ...result,
+      businessContext: businessContext?.content,
+    });
 
     return {
       question: request.question,
       sql,
       ...result,
+      insight,
     };
   }
 }
