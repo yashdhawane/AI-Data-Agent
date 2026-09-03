@@ -2,6 +2,10 @@ import type { DatabaseMetadata } from "../metadata.types.js";
 
 export class MetadataContextBuilder {
   build(metadata: DatabaseMetadata): string {
+    if (metadata.dataModel === "document") {
+      return this.buildCollections(metadata);
+    }
+
     if (metadata.dataModel !== "relational") {
       throw new Error(
         `Metadata context builder does not support data model: ${metadata.dataModel}`,
@@ -16,6 +20,30 @@ export class MetadataContextBuilder {
     return sections
       .filter(Boolean)
       .join("\n\n");
+  }
+
+  private buildCollections(
+    metadata: Extract<DatabaseMetadata, { dataModel: "document" }>,
+  ): string {
+    const documentMetadata = metadata.metadata as {
+      collections?: Array<{
+        name: string;
+        documentCount: number;
+        fields: Array<{ name: string; dataTypes: string[]; nullable: boolean }>;
+      }>;
+    };
+
+    return [
+      "MONGODB COLLECTIONS",
+      ...(documentMetadata.collections ?? []).map((collection) => [
+        `COLLECTION ${collection.name}`,
+        `  DOCUMENTS: ${collection.documentCount}`,
+        "  FIELDS:",
+        ...collection.fields.map((field) =>
+          `    ${field.name}: ${field.dataTypes.join(" | ")} ${field.nullable ? "NULLABLE" : "PRESENT IN SAMPLE"}`,
+        ),
+      ].join("\n")),
+    ].join("\n\n");
   }
 
   private buildTables(

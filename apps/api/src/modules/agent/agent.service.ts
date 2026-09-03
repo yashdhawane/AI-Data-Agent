@@ -10,6 +10,7 @@ import { SqlGenerationService } from "./sql/sql-generation.service.js";
 import { MetadataContextBuilder } from "../metadata/context/metadata-context.builder.js";
 import { BusinessContextService } from "../business-context/business-context.service.js";
 import { InsightService } from "../insight/insight.service.js";
+import { MongoQueryGenerationService } from "./mongo/mongo-query-generation.service.js";
 
 import type {
   AgentQueryRequest,
@@ -25,6 +26,7 @@ export class AgentService {
   private readonly metadataContextBuilder: MetadataContextBuilder;
   private readonly businessContextService: BusinessContextService;
   private readonly insightService: InsightService;
+  private readonly mongoQueryGenerationService: MongoQueryGenerationService;
 
   constructor() {
     this.metadataService = new MetadataService();
@@ -32,6 +34,7 @@ export class AgentService {
     this.businessContextService = new BusinessContextService();
     this.llmService = createLlmService();
     this.insightService = new InsightService(this.llmService);
+    this.mongoQueryGenerationService = new MongoQueryGenerationService(this.llmService);
     this.queryService = new QueryService();
     this.sqlGenerationService = new SqlGenerationService(this.llmService);
     this.intentService = new IntentService(
@@ -74,13 +77,18 @@ export class AgentService {
   this.metadataContextBuilder.build(metadata);
     const businessContext = await this.businessContextService.get(organizationId);
 
-    const sql =
-      await this.sqlGenerationService.generate({
-        question: request.question,
-        schema,
-        businessContext: businessContext?.content,
-        intent
-  });
+    const sql = metadata.dataModel === "document"
+      ? await this.mongoQueryGenerationService.generate({
+          question: request.question,
+          schema,
+          businessContext: businessContext?.content,
+        })
+      : await this.sqlGenerationService.generate({
+          question: request.question,
+          schema,
+          businessContext: businessContext?.content,
+          intent,
+        });
 
 
     const result =

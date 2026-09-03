@@ -8,13 +8,11 @@ import type {
   QueryResult,
 } from "./query.types.js";
 import { applyQueryLimit } from "./query.limit.js";
+import { validateMongoQuery } from "./mongo-query.validator.js";
 
 export class QueryService {
   async execute(request: QueryRequest, organizationId: string): Promise<QueryResult> {
     const { dataSourceId, sql } = request;
-
-    const validatedSql = validateReadOnlySql(sql);
-    const safeSql = await applyQueryLimit(validatedSql);
 
     const dataSource = await prisma.dataSource.findUnique({
       where: {
@@ -35,6 +33,23 @@ export class QueryService {
       );
     }
 
+    if (dataSource.type === "mongodb") {
+      const mongoQuery = validateMongoQuery(sql);
+      const connectionUrl = await getDataSourceConnectionUrl(dataSource.id);
+      const connector = DatabaseConnectorFactory.create(dataSource.type, connectionUrl);
+
+      try {
+        const rows = await connector.query(JSON.stringify(mongoQuery));
+        return {
+          columns: rows.length > 0 ? Object.keys(rows[0] ?? {}) : [],
+          rows,
+          rowCount: rows.length,
+        };
+      } finally {
+        await connector.close();
+      }
+    }
+
     if (dataSource.type !== "postgresql") {
       throw new AppError(
         `Unsupported data source type: ${dataSource.type}`,
@@ -43,6 +58,8 @@ export class QueryService {
       );
     }
 
+    const validatedSql = validateReadOnlySql(sql);
+    const safeSql = await applyQueryLimit(validatedSql);
     const connectionUrl =
       await getDataSourceConnectionUrl(dataSource.id);
 

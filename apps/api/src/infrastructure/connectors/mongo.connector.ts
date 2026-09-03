@@ -1,5 +1,6 @@
 import { MongoClient } from "mongodb";
 import type { DatabaseConnector, DatabaseQueryResult } from "./database.connector.js";
+import type { MongoQuery } from "../../modules/query/mongo-query.types.js";
 
 export type MongoCollectionInfo = {
   name: string;
@@ -54,8 +55,19 @@ export class MongoConnector implements DatabaseConnector {
     }));
   }
 
-  async query(_query: string, _params: unknown[] = []): Promise<DatabaseQueryResult[]> {
-    throw new Error("MongoDB queries require the MongoDB query adapter");
+  async query(query: string, _params: unknown[] = []): Promise<DatabaseQueryResult[]> {
+    const mongoQuery = JSON.parse(query) as MongoQuery;
+    await this.client.connect();
+
+    const cursor = this.database()
+      .collection(mongoQuery.collection)
+      .find(mongoQuery.filter)
+      .limit(mongoQuery.limit ?? 100);
+
+    if (mongoQuery.projection) cursor.project(mongoQuery.projection);
+    if (mongoQuery.sort) cursor.sort(mongoQuery.sort);
+
+    return cursor.toArray() as Promise<DatabaseQueryResult[]>;
   }
 
   async close(): Promise<void> {

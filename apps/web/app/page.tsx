@@ -1,193 +1,752 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import styles from "./page.module.css";
+import { useEffect, useState, useRef } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-type User = { id: string; email: string; name?: string | null; organizationId: string; role: "ADMIN" | "MEMBER" };
-type DataSource = { id: string; name: string; type: string; createdAt: string };
-type Member = { id: string; email: string; name: string | null; role: "ADMIN" | "MEMBER"; createdAt: string };
-type BusinessContext = { id?: string; content: string; createdAt?: string; updatedAt?: string } | null;
-type Metadata = { metadata?: { tables: { schema: string; name: string }[]; columns: { schema: string; table: string; name: string; dataType: string; nullable: boolean }[]; primaryKeys: { schema: string; table: string; columns: string[] }[]; foreignKeys: unknown[] } };
-type AgentInsight = {
-  summary: string;
-  facts: string[];
-  inferences: string[];
-  recommendations: string[];
-  unknowns: string[];
-  confidence: "LOW" | "MEDIUM" | "HIGH";
-};
-type AgentResult = {
-  question: string;
-  sql: string;
-  columns: string[];
-  rows: Record<string, unknown>[];
-  rowCount: number;
-  insight: AgentInsight;
-};
-type Tab = "overview" | "members" | "sources" | "context" | "schema" | "query";
-
-async function api(path: string, options: RequestInit = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...options.headers },
-  });
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.error ?? "Request failed");
-  }
-  return response.status === 204 ? null : response.json();
-}
-
-export default function Home() {
-  const [user, setUser] = useState<User | null>(null);
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [organizationName, setOrganizationName] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>("overview");
-  const [dataSources, setDataSources] = useState<DataSource[]>([]);
-  const [selectedSource, setSelectedSource] = useState("");
-  const [members, setMembers] = useState<Member[]>([]);
-  const [metadata, setMetadata] = useState<Metadata | null>(null);
-  const [queryMode, setQueryMode] = useState<"agent" | "sql">("agent");
-  const [sql, setSql] = useState("");
-  const [notice, setNotice] = useState("");
-  const [sourceForm, setSourceForm] = useState({
-    name: "",
-    type: "postgresql",
-    hostedBy: "docker",
-    host: "127.0.0.1",
-    port: "5433",
-    database: "customerdb",
-    username: "agent",
-    password: "",
-  });
-  const [memberForm, setMemberForm] = useState({ email: "", name: "", password: "" });
-  const [question, setQuestion] = useState("");
-  const [result, setResult] = useState<AgentResult | null>(null);
-  const [businessContext, setBusinessContext] = useState<BusinessContext>(null);
-  const [contextDraft, setContextDraft] = useState("");
+export default function LandingPage() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [countersStarted, setCountersStarted] = useState(false);
+  const statsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    api("/auth/me")
-      .then((data) => { setUser(data.user); return Promise.all([api("/data-sources"), api("/users"), api("/business-context")]); })
-      .then(([sources, users, context]) => { setDataSources(sources); setSelectedSource(sources[0]?.id ?? ""); setMembers(users); setBusinessContext(context); setContextDraft(context?.content ?? ""); })
-      .catch(() => undefined)
-      .finally(() => setLoading(false));
-  }, []);
+    // Intersection observer for stats counting
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !countersStarted) {
+            setCountersStarted(true);
+            startCounters();
+          }
+        });
+      },
+      { threshold: 0.25 }
+    );
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    try {
-      const data = await api(`/auth/${mode}`, {
-        method: "POST",
-        body: JSON.stringify({ email, password, name, organizationName }),
-      });
-      setUser(data.user);
-      const [sources, users, context] = await Promise.all([api("/data-sources"), api("/users"), api("/business-context")]);
-      setDataSources(sources); setSelectedSource(sources[0]?.id ?? ""); setMembers(users); setBusinessContext(context); setContextDraft(context?.content ?? "");
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Request failed");
+    if (statsRef.current) {
+      observer.observe(statsRef.current);
     }
-  }
 
-  async function signOut() {
-    await api("/auth/logout", { method: "POST" });
-    setUser(null);
-  }
+    return () => observer.disconnect();
+  }, [countersStarted]);
 
-  async function addSource(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setNotice("");
-    if (sourceForm.type !== "postgresql") { setNotice("This database connector is coming soon. PostgreSQL is available now."); return; }
-    const connectionUrl = `postgresql://${encodeURIComponent(sourceForm.username)}:${encodeURIComponent(sourceForm.password)}@${sourceForm.host}:${sourceForm.port}/${encodeURIComponent(sourceForm.database)}?sslmode=disable`;
-    try { const source = await api("/data-sources", { method: "POST", body: JSON.stringify({ name: sourceForm.name, type: sourceForm.type, connectionUrl }) }); setDataSources((current) => [source, ...current]); setSelectedSource(source.id); setSourceForm({ name: "", type: "postgresql", hostedBy: "docker", host: "127.0.0.1", port: "5433", database: "customerdb", username: "agent", password: "" }); setNotice("PostgreSQL source added."); }
-    catch (requestError) { setNotice(requestError instanceof Error ? requestError.message : "Could not add source"); }
-  }
+  const startCounters = () => {
+    const stats = [
+      { target: 2.3, suffix: 's', decimals: 1, duration: 1500 },
+      { target: 94, suffix: '%', decimals: 0, duration: 1580 },
+      { target: 24, suffix: '/7', decimals: 0, duration: 1660 },
+      { target: 847, suffix: '+', decimals: 0, duration: 1740 }
+    ];
 
-  async function testSource() {
-    if (!selectedSource) return; setNotice("");
-    try { await api(`/data-sources/${selectedSource}/test-connection`, { method: "POST" }); setNotice("Connection verified."); }
-    catch (requestError) { setNotice(requestError instanceof Error ? requestError.message : "Connection failed"); }
-  }
+    stats.forEach((stat, i) => {
+      const element = document.getElementById(`stat-${i}`);
+      if (element) {
+        const startTime = Date.now() + 480 + i * 90;
+        const animate = () => {
+          const now = Date.now();
+          const elapsed = now - startTime;
+          if (elapsed < 0) {
+            requestAnimationFrame(animate);
+            return;
+          }
+          const progress = Math.min(elapsed / stat.duration, 1);
+          const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+          const current = stat.target * easeOutCubic;
+          element.textContent = current.toFixed(stat.decimals) + stat.suffix;
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          }
+        };
+        requestAnimationFrame(animate);
+      }
+    });
+  };
 
-  async function removeSource(sourceId: string) {
-    setNotice("");
-    try {
-      await api(`/data-sources/${sourceId}`, { method: "DELETE" });
-      const sources = await api("/data-sources");
-      setDataSources(sources);
-      setSelectedSource(sources[0]?.id ?? "");
-      setNotice("Connection removed.");
-    } catch (requestError) {
-      setNotice(requestError instanceof Error ? requestError.message : "Could not remove connection");
-    }
-  }
+  return (
+    <div className="page" style={{
+      backgroundColor: '#000000',
+      color: '#ffffff',
+      fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif',
+      overflow: 'hidden',
+      height: '100dvh'
+    }}>
+      {/* Background Video */}
+      <div className="bg" style={{
+        position: 'absolute',
+        inset: 0,
+        overflow: 'hidden',
+        backgroundColor: '#000000'
+      }}>
+        <video 
+          className="bg-video"
+          autoPlay 
+          muted 
+          loop 
+          playsInline
+          style={{
+            position: 'absolute',
+            inset: 0,
+            objectFit: 'cover',
+            pointerEvents: 'none',
+            zIndex: 0
+          }}
+        >
+          <source
+            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260809_012548_ef22562c-c0ae-4816-ad9d-f8922af4e6a7.mp4"
+            type="video/mp4"
+          />
+        </video>
+      </div>
 
-  async function addMember(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setNotice("");
-    try { const member = await api("/users", { method: "POST", body: JSON.stringify(memberForm) }); setMembers((current) => [...current, member]); setMemberForm({ email: "", name: "", password: "" }); setNotice("Member added to your organization."); }
-    catch (requestError) { setNotice(requestError instanceof Error ? requestError.message : "Could not add member"); }
-  }
+      {/* Mobile Menu Overlay */}
+      {menuOpen && (
+        <>
+          <div 
+            className="overlay"
+            onClick={() => setMenuOpen(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0,0,0,0.62)',
+              backdropFilter: 'blur(6px)',
+              zIndex: 40
+            }}
+          />
+          <div 
+            className="mobile-menu"
+            style={{
+              position: 'fixed',
+              top: '80px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: 'rgba(255,255,255,0.95)',
+              borderRadius: '28px',
+              padding: '22px 18px 20px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.45)',
+              zIndex: 50,
+              width: '90%',
+              maxWidth: '320px',
+              backdropFilter: 'blur(20px)'
+            }}
+          >
+            {['Home', 'Product', 'Case Studies', 'Contact'].map((item, i) => (
+              <a 
+                key={item}
+                href="#"
+                className="mobile-link"
+                style={{
+                  display: 'block',
+                  padding: '14px 16px',
+                  color: '#0a0a0a',
+                  textDecoration: 'none',
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  borderRadius: '12px',
+                  transition: 'background 0.2s'
+                }}
+                onClick={() => setMenuOpen(false)}
+              >
+                {item}
+              </a>
+            ))}
+            <button 
+              className="mobile-signin"
+              style={{
+                width: '100%',
+                padding: '14px 16px',
+                marginTop: '8px',
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                color: '#0a0a0a',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onClick={() => window.location.assign('/signin')}
+            >
+              Sign in
+            </button>
+          </div>
+        </>
+      )}
 
-  async function saveBusinessContext(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setNotice("");
-    try {
-      const context = await api("/business-context", { method: "PUT", body: JSON.stringify({ content: contextDraft }) });
-      setBusinessContext(context); setContextDraft(context.content); setNotice("Business context saved.");
-    } catch (requestError) { setNotice(requestError instanceof Error ? requestError.message : "Could not save business context"); }
-  }
+      {/* Main Content */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 'clamp(16px, 2.4vh, 28px) clamp(14px, 3vw, 32px)',
+        height: '100dvh',
+        position: 'relative',
+        zIndex: 1
+      }}>
+        {/* Header */}
+        <header 
+          className="header"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 'clamp(18px, 2.8vw, 28px)' as any,
+            maxWidth: '720px',
+            width: '100%',
+            marginBottom: 'auto'
+          } as React.CSSProperties}
+        >
+          {/* Logo */}
+          <button 
+            className="logo-btn"
+            style={{
+              width: 'clamp(40px, 4.4vw, 46px)',
+              height: 'clamp(40px, 4.4vw, 46px)',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(255,255,255,0.95)',
+              border: 'none',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.16)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'transform 0.2s',
+              backdropFilter: 'blur(10px)'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.04)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            <div style={{
+              width: '72%',
+              height: '72%',
+              display: 'grid',
+              placeItems: 'center'
+            }}>
+              <span style={{ fontSize: 'clamp(18px, 2.2vw, 24px)', color: '#0a0a0a' }}>◒</span>
+            </div>
+          </button>
 
-  async function askAgent(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setNotice(""); setResult(null);
-    try { setResult(await api(queryMode === "agent" ? "/agent/query" : "/query", { method: "POST", body: JSON.stringify(queryMode === "agent" ? { dataSourceId: selectedSource, question } : { dataSourceId: selectedSource, sql }) })); }
-    catch (requestError) { setNotice(requestError instanceof Error ? requestError.message : "Could not run query"); }
-  }
+          {/* Desktop Nav */}
+          <nav 
+            className="nav-pill desktop-nav"
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.95)',
+              height: 'clamp(44px, 5.2vw, 48px)',
+              maxWidth: '430px',
+              flex: 1,
+              padding: '4px 8px',
+              borderRadius: '999px',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.16)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px' as any,
+              backdropFilter: 'blur(10px)'
+            }}
+          >
+            {['Home', 'Product', 'Case Studies', 'Contact'].map((item, i) => (
+              <a
+                key={item}
+                href="#"
+                className="nav-link"
+                style={{
+                  fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif',
+                  fontWeight: 600,
+                  fontSize: 'clamp(13px, 1.4vw, 15px)',
+                  letterSpacing: '-0.01em',
+                  color: '#0a0a0a',
+                  textDecoration: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '999px',
+                  opacity: i === 0 ? 1 : 0.85,
+                  transition: 'all 0.2s',
+                  position: 'relative',
+                  backgroundColor: i === 0 ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.8)',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = i === 0 ? '1' : '0.85';
+                  if (i === 0) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,1)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = i === 0 ? '1' : '0.7';
+                  if (i === 0) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.95)';
+                  }
+                }}
+              >
+                {item}
+                {i === 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    bottom: '5px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}>
+                    <span style={{
+                      width: '3px',
+                      height: '3px',
+                      backgroundColor: '#000',
+                      borderRadius: '50%',
+                      marginRight: '2px'
+                    }} />
+                    <span style={{
+                      width: '3px',
+                      height: '3px',
+                      backgroundColor: '#000',
+                      borderRadius: '50%',
+                      marginRight: '2px'
+                    }} />
+                    <span style={{
+                      width: '3px',
+                      height: '3px',
+                      backgroundColor: '#000',
+                      borderRadius: '50%'
+                    }} />
+                  </span>
+                )}
+              </a>
+            ))}
+          </nav>
 
-  async function loadMetadata() {
-    if (!selectedSource) return;
-    setNotice("");
-    try { setMetadata(await api(`/data-sources/${selectedSource}/metadata`)); }
-    catch (requestError) { setNotice(requestError instanceof Error ? requestError.message : "Could not load schema"); }
-  }
+          {/* Sign In Button */}
+          <button 
+            className="sign-in desktop-signin"
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              color: '#0a0a0a',
+              height: 'clamp(44px, 5.2vw, 48px)',
+              padding: '0 20px',
+              borderRadius: '999px',
+              border: 'none',
+              fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif',
+              fontWeight: 600,
+              fontSize: 'clamp(13px, 1.4vw, 15px)',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.16)',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#ffffff';
+              e.currentTarget.style.color = '#000000';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.9)';
+              e.currentTarget.style.color = '#0a0a0a';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+            onClick={() => window.location.assign('/signin')}
+          >
+            Sign in
+          </button>
 
-  if (loading) return <main className={styles.page}><p className={styles.loading}>Loading session...</p></main>;
-  if (user) return <main className={styles.appShell}>
-    <aside className={styles.sidebar}><div className={styles.brand}><span className={styles.brandMark}>◒</span><span>Data Agent</span></div><div className={styles.orgBlock}><span className={styles.orgDot} />{user.name ?? user.email}<small>{user.role} workspace</small></div><nav>{(["overview", "members", "sources", "context", "schema", "query"] as Tab[]).map((item) => ((item === "members" || item === "sources") && user.role !== "ADMIN") ? null : <button key={item} className={tab === item ? styles.navActive : ""} onClick={() => { setTab(item); if (item === "schema") void loadMetadata(); }}><span>{({ overview: "⌂", members: "◎", sources: "▣", context: "✎", schema: "◇", query: "✦" } as Record<Tab, string>)[item]}</span>{item === "overview" ? "Overview" : item === "members" ? "Members" : item === "sources" ? "Data sources" : item === "context" ? "Business context" : item === "schema" ? "Schema" : "Ask your data"}</button>)}</nav><button className={styles.signOut} onClick={signOut}>Sign out <span>↗</span></button></aside>
-    <section className={styles.workspace}><header className={styles.topbar}><div><span className={styles.eyebrow}>SECURE WORKSPACE</span><p>{user.email}</p></div><div className={styles.avatar}>{(user.name ?? user.email).charAt(0).toUpperCase()}</div></header><div className={styles.content}>
-      {tab === "overview" && <><div className={styles.pageHeading}><div><span className={styles.kicker}>YOUR WORKSPACE</span><h1>Good to see you{user.name ? `, ${user.name.split(" ")[0]}` : ""}.</h1><p className={styles.muted}>Connect your PostgreSQL data and ask questions in plain language.</p></div><button className={styles.primaryButton} onClick={() => setTab("query")}>Ask a question <span>→</span></button></div><div className={styles.metrics}><div><span>CONNECTED SOURCES</span><strong>{dataSources.length}</strong><small>PostgreSQL databases</small></div><div><span>ACCESS LEVEL</span><strong>{user.role}</strong><small>Organization permissions</small></div><div><span>QUERY ENGINE</span><strong>READY</strong><small>Read-only agent mode</small></div></div><div className={styles.splitGrid}><section className={styles.panel}><div className={styles.panelHeader}><div><span className={styles.kicker}>GET STARTED</span><h2>Build your data workspace</h2></div></div><div className={styles.steps}>{user.role === "ADMIN" && <button onClick={() => setTab("sources")}><b>01</b><span><strong>Connect PostgreSQL</strong><small>Add a secure database connection</small></span><i>→</i></button>}<button onClick={() => setTab("query")}><b>{user.role === "ADMIN" ? "02" : "01"}</b><span><strong>Ask your data</strong><small>Turn a question into a safe SQL query</small></span><i>→</i></button></div></section><section className={styles.panel + " " + styles.accentPanel}><span className={styles.kicker}>ACTIVE MODE</span><h2>Read-only intelligence</h2><p>Generated queries are validated and limited before they reach your database.</p><div className={styles.live}><span />Agent available</div></section></div></>}
-      {tab === "context" && <div className={styles.pageHeading}><div><span className={styles.kicker}>SHARED KNOWLEDGE</span><h1>Tell the agent how your business works.</h1><p className={styles.muted}>Explain terms, metrics, policies, and rules that are not visible in your database schema.</p></div></div>}
-      {tab === "context" && <section className={styles.contextLayout}><section className={styles.panel + " " + styles.formPanel}>{user.role === "ADMIN" ? <form onSubmit={saveBusinessContext}><label>Business context<textarea required minLength={1} value={contextDraft} onChange={(event) => setContextDraft(event.target.value)} placeholder="Revenue excludes refunds. Active customers have placed an order in the last 90 days. Use USD for all monetary values." rows={12} /></label><button className={styles.primaryButton} type="submit">Save context <span>→</span></button></form> : <><div className={styles.panelHeader}><div><span className={styles.kicker}>READ ONLY</span><h2>Organization context</h2></div></div><p className={styles.contextText}>{businessContext?.content ?? "Your organization has not added business context yet."}</p></>}</section><section className={styles.panel + " " + styles.accentPanel}><span className={styles.kicker}>USED IN ANALYSIS</span><h2>More useful answers</h2><p>The agent combines this shared knowledge with the live schema and data from your connected client database.</p><div className={styles.live}><span />{businessContext ? "Context active" : "Waiting for context"}</div></section></section>}
-      {tab === "members" && <div className={styles.pageHeading}><div><span className={styles.kicker}>ORGANIZATION ADMIN</span><h1>Manage members.</h1><p className={styles.muted}>Add teammates to this organization with member access.</p></div></div>}
-      {tab === "members" && <section className={styles.memberLayout}><section className={styles.panel + " " + styles.formPanel}><form onSubmit={addMember}><label>Member name<input required value={memberForm.name} onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })} placeholder="Jordan Lee" /></label><label>Email address<input required type="email" value={memberForm.email} onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })} placeholder="jordan@company.com" /></label><label>Temporary password<input required minLength={8} type="password" value={memberForm.password} onChange={(e) => setMemberForm({ ...memberForm, password: e.target.value })} placeholder="At least 8 characters" /></label><button className={styles.primaryButton} type="submit">Add member <span>→</span></button></form></section><section className={styles.panel}><div className={styles.panelHeader}><h2>Organization members</h2><span className={styles.count}>{members.length}</span></div>{members.map((member) => <div className={styles.memberRow} key={member.id}><span className={styles.avatarSmall}>{(member.name ?? member.email).charAt(0).toUpperCase()}</span><span><strong>{member.name ?? member.email}</strong><small>{member.email}</small></span><b>{member.role}</b></div>)}</section></section>}
-      {tab === "sources" && user.role === "ADMIN" && <><div className={styles.pageHeading}><div><span className={styles.kicker}>DATA CONNECTIONS</span><h1>Connect a database.</h1><p className={styles.muted}>Choose where your database lives, then add its connection details.</p></div></div><div className={styles.sourceLayout}><section className={styles.panel + " " + styles.formPanel}><div className={styles.formSection}><span className={styles.stepNumber}>01</span><div><h2>Choose your database</h2><p className={styles.helper}>More connectors can be enabled as they become available.</p></div></div><label>Database type<select value={sourceForm.type} onChange={(e) => setSourceForm({ ...sourceForm, type: e.target.value })}><option value="postgresql">PostgreSQL</option><option value="mysql">MySQL</option><option value="mongodb">MongoDB</option><option value="sqlserver">SQL Server</option><option value="oracle">Oracle</option></select></label><div className={styles.databaseChoices}>{["postgresql", "mysql", "mongodb", "sqlserver", "oracle"].map((type) => <button type="button" key={type} className={sourceForm.type === type ? styles.databaseChoiceActive : styles.databaseChoice} onClick={() => setSourceForm({ ...sourceForm, type })}><span className={styles.databaseIcon}>▣</span>{type === "sqlserver" ? "SQL Server" : type.charAt(0).toUpperCase() + type.slice(1)}</button>)}</div><div className={styles.formSection}><span className={styles.stepNumber}>02</span><div><h2>Where is your database hosted?</h2><p className={styles.helper}>This helps us use the right network settings.</p></div></div><div className={styles.hostChoices}>{[{ value: "aws", label: "AWS", icon: "☁" }, { value: "google-cloud", label: "Google Cloud", icon: "◆" }, { value: "docker", label: "Docker", icon: "◈" }, { value: "other", label: "Other", icon: "＋" }].map((host) => <button type="button" key={host.value} className={sourceForm.hostedBy === host.value ? styles.hostChoiceActive : styles.hostChoice} onClick={() => setSourceForm({ ...sourceForm, hostedBy: host.value })}><span>{host.icon}</span>{host.label}</button>)}</div><div className={styles.formSection}><span className={styles.stepNumber}>03</span><div><h2>Connection details</h2><p className={styles.helper}>Your password is encrypted before it is stored.</p></div></div><form onSubmit={addSource} className={styles.connectionForm}><label>Connection name<input required value={sourceForm.name} onChange={(e) => setSourceForm({ ...sourceForm, name: e.target.value })} placeholder="Customer production DB" /></label><div className={styles.fieldGrid}><label>Host<input required value={sourceForm.host} onChange={(e) => setSourceForm({ ...sourceForm, host: e.target.value })} placeholder="127.0.0.1" /></label><label>Port<input required inputMode="numeric" value={sourceForm.port} onChange={(e) => setSourceForm({ ...sourceForm, port: e.target.value })} placeholder="5432" /></label></div><div className={styles.fieldGrid}><label>Database name<input required value={sourceForm.database} onChange={(e) => setSourceForm({ ...sourceForm, database: e.target.value })} placeholder="customerdb" /></label><label>Username<input required value={sourceForm.username} onChange={(e) => setSourceForm({ ...sourceForm, username: e.target.value })} placeholder="agent" /></label></div><label>Password<input required type="password" value={sourceForm.password} onChange={(e) => setSourceForm({ ...sourceForm, password: e.target.value })} placeholder="Database password" /></label><button className={styles.primaryButton} type="submit">Test and connect <span>→</span></button></form></section><section className={styles.panel}><div className={styles.panelHeader}><div><span className={styles.kicker}>CONNECTED</span><h2>Your data sources</h2></div><span className={styles.count}>{dataSources.length}</span></div>{dataSources.length === 0 ? <p className={styles.muted}>No sources connected yet.</p> : dataSources.map((source) => <div className={styles.sourceRow} key={source.id}><button onClick={() => setSelectedSource(source.id)}><span className={styles.databaseIcon}>▣</span><span><strong>{source.name}</strong><small>{source.type} · Connected</small></span>{selectedSource === source.id && <b>Selected</b>}</button><button className={styles.removeButton} onClick={() => void removeSource(source.id)}>Remove</button></div>)}{selectedSource && <button className={styles.secondaryButton} onClick={testSource}>Test selected connection</button>}</section></div></>}
-      {tab === "schema" && <><div className={styles.pageHeading}><div><span className={styles.kicker}>DATABASE SCHEMA</span><h1>Inspect your schema.</h1><p className={styles.muted}>Live tables and columns available to the data agent.</p></div><button className={styles.secondaryButton} onClick={loadMetadata}>Refresh schema</button></div><section className={styles.panel}>{!metadata ? <p className={styles.muted}>Select a source and load its schema.</p> : metadata.metadata?.tables.map((table) => <div className={styles.tableRow} key={`${table.schema}.${table.name}`}><strong>{table.schema}.{table.name}</strong><span>{metadata.metadata?.columns.filter((column) => column.schema === table.schema && column.table === table.name).map((column) => column.name).join("  ·  ")}</span></div>)}</section></>}
-      {tab === "query" && <><div className={styles.pageHeading}><div><span className={styles.kicker}>ASK YOUR DATA</span><h1>What would you like to know?</h1><p className={styles.muted}>Use the agent or run a read-only SQL query.</p></div></div><section className={styles.queryPanel}><div className={styles.modeSwitch}><button className={queryMode === "agent" ? styles.modeActive : ""} onClick={() => setQueryMode("agent")}>Agent question</button><button className={queryMode === "sql" ? styles.modeActive : ""} onClick={() => setQueryMode("sql")}>Direct SQL</button></div><label>Data source<select value={selectedSource} onChange={(e) => setSelectedSource(e.target.value)}><option value="">Select a PostgreSQL source</option>{dataSources.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label><form onSubmit={askAgent}><label>{queryMode === "agent" ? "Your question" : "Read-only SQL"}<textarea required value={queryMode === "agent" ? question : sql} onChange={(e) => queryMode === "agent" ? setQuestion(e.target.value) : setSql(e.target.value)} placeholder={queryMode === "agent" ? "How many customers signed up this month?" : "SELECT * FROM customers"} rows={4} /><button className={styles.primaryButton} type="submit" disabled={!selectedSource}>Run analysis <span>→</span></button></label></form></section>{result && <section className={styles.resultPanel}><div className={styles.panelHeader}><div><span className={styles.kicker}>RESULT</span><h2>{result.rowCount} rows returned</h2></div><span className={styles.confidenceBadge}>{result.insight.confidence}</span></div><div className={styles.aiInsight}><h3>AI summary</h3><p>{result.insight.summary}</p></div><div className={styles.insightGrid}><div className={styles.insightSection}><h4>Facts</h4><ul>{result.insight.facts.map((fact) => <li key={fact}>{fact}</li>)}</ul></div><div className={styles.insightSection}><h4>Inferences</h4><ul>{result.insight.inferences.map((fact) => <li key={fact}>{fact}</li>)}</ul></div><div className={styles.insightSection}><h4>Recommendations</h4><ul>{result.insight.recommendations.map((fact) => <li key={fact}>{fact}</li>)}</ul></div><div className={styles.insightSection}><h4>Unknowns</h4><ul>{result.insight.unknowns.map((fact) => <li key={fact}>{fact}</li>)}</ul></div></div><pre>{result.sql}</pre><div className={styles.tableWrap}><table><thead><tr>{result.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{result.rows.map((row, index) => <tr key={index}>{result.columns.map((column) => <td key={column}>{String(row[column] ?? "-")}</td>)}</tr>)}</tbody></table></div></section>}</>}
-      {notice && <p className={styles.notice}>{notice}</p>}
-    </div></section>
-  </main>;
+          {/* Mobile Burger */}
+          <button 
+            className="mobile-burger"
+            style={{
+              display: 'none',
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              backgroundColor: '#28282a',
+              border: 'none',
+              cursor: 'pointer',
+              position: 'relative'
+            }}
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            <span style={{
+              position: 'absolute',
+              width: '18px',
+              height: '1.5px',
+              backgroundColor: '#fff',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -6px)',
+              transition: 'all 0.2s'
+            }} />
+            <span style={{
+              position: 'absolute',
+              width: '18px',
+              height: '1.5px',
+              backgroundColor: '#fff',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, 0)',
+              transition: 'all 0.2s'
+            }} />
+            <span style={{
+              position: 'absolute',
+              width: '18px',
+              height: '1.5px',
+              backgroundColor: '#fff',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, 6px)',
+              transition: 'all 0.2s'
+            }} />
+          </button>
+        </header>
 
-  return <main className={styles.page}><section className={styles.authCard}>
-    <div className={styles.eyebrow}>POSTGRESQL DATA AGENT</div>
-    <h1>{mode === "login" ? "Welcome back." : "Create your workspace."}</h1>
-    <p className={styles.muted}>{mode === "login" ? "Sign in to continue to your data workspace." : "Start asking useful questions of your data."}</p>
-    <form onSubmit={submit}>
-      {mode === "register" && <>
-        <label>Name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ada Lovelace" /></label>
-        <label>Organization<input required value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} placeholder="Acme Analytics" /></label>
-      </>}
-      <label>Email<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" /></label>
-      <label>Password<input required minLength={8} type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" /></label>
-      {error && <p className={styles.error}>{error}</p>}
-      <button className={styles.primaryButton} type="submit">{mode === "login" ? "Sign in" : "Create account"}</button>
-    </form>
-    <button className={styles.switchButton} onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }}>
-      {mode === "login" ? "Need an account? Register" : "Already have an account? Sign in"}
-    </button>
-  </section></main>;
+        {/* Hero */}
+        <div 
+          className="hero"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+            maxWidth: '900px',
+            flex: 1,
+            justifyContent: 'center'
+          }}
+        >
+          {/* Trust Row */}
+          <div 
+            className="trust-row"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              marginBottom: 'clamp(16px, 2.5vh, 26px)',
+              '--trust-size': 'clamp(36px, 4.5vw, 42px)'
+            } as React.CSSProperties}
+          >
+            {/* Avatar Rings */}
+            {['microsoft', 'amazon', 'google'].map((brand, i) => (
+              <div
+                key={brand}
+                className="avatar-ring"
+                style={{
+                  width: 'var(--trust-size)',
+                  height: 'var(--trust-size)',
+                  backgroundColor: 'rgba(40, 40, 40, 0.8)',
+                  border: '2px solid rgba(255,255,255,0.6)',
+                  borderRadius: '50%',
+                  padding: '5px',
+                  marginLeft: i > 0 ? 'calc(var(--trust-size) * -0.42)' : 0,
+                  zIndex: i + 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'transform 0.35s',
+                  boxShadow: '0 0 20px rgba(100,100,255,0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  const offsets = [-2, -4, -2];
+                  e.currentTarget.style.transform = `translateY(${offsets[i]}px)`;
+                  e.currentTarget.style.boxShadow = '0 0 30px rgba(100,100,255,0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(100,100,255,0.3)';
+                }}
+              >
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  backgroundColor: '#fff',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <i 
+                    className={`fa-brands fa-${brand}`}
+                    style={{
+                      color: '#111',
+                      fontSize: 'calc(var(--trust-size) * 0.34)'
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+
+            {/* Trust Pill */}
+            <div
+              className="trust-pill"
+              style={{
+                height: 'var(--trust-size)',
+                backgroundColor: 'rgba(40, 40, 40, 0.9)',
+                border: '2px solid rgba(255,255,255,0.6)',
+                borderRadius: '999px',
+                marginLeft: 'calc(var(--trust-size) * -0.42)',
+                paddingLeft: 'calc(var(--trust-size) * 0.58)',
+                paddingRight: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                zIndex: 4,
+                boxShadow: '0 0 20px rgba(100,100,255,0.3)'
+              }}
+            >
+              <span style={{
+                fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif',
+                fontWeight: 700,
+                color: '#ffffff',
+                fontSize: 'clamp(12px, 1.4vw, 13.5px)',
+                whiteSpace: 'nowrap',
+                textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 16px rgba(100,100,255,0.4)'
+              }}>
+                Trusted by 2000+ Enterprises
+              </span>
+            </div>
+          </div>
+
+          {/* Headline */}
+          <div 
+            className="headline"
+            style={{
+              fontFamily: '"BubbledotICG-FinePos", "Geist Pixel Circle", monospace',
+              fontSize: 'clamp(28px, 6.2vw, 80px)',
+              letterSpacing: '-0.04em',
+              lineHeight: 1.12,
+              color: '#ffffff',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textShadow: '0 0 40px rgba(255,255,255,0.8), 0 0 80px rgba(100,100,255,0.5), 0 0 120px rgba(255,100,100,0.3)'
+            } as React.CSSProperties}
+          >
+            <span 
+              className="headline-line"
+              style={{
+                display: 'block',
+                opacity: 1,
+                transform: 'translateY(0)',
+                color: '#090909',
+              }}
+            >
+              AI Data Agent
+            </span>
+          </div>
+
+          {/* Subhead */}
+          <p 
+            className="subhead"
+            style={{
+              maxWidth: 'min(500px, 92%)',
+              fontSize: 'clamp(calc(13.5px + 2pt), calc(1.55vw + 2pt), calc(16.5px + 2pt))',
+              color: '#090909',
+              opacity: 0.95,
+              lineHeight: 1.55,
+              fontWeight: 400,
+              marginTop: 'clamp(16px, 2vh, 24px)',
+              marginBottom: 'clamp(20px, 2.5vh, 32px)',
+              // textShadow: '0 2px 12px rgba(0,0,0,0.9), 0 0 24px rgba(100,100,255,0.3)'
+            } as React.CSSProperties}
+          >
+            AI Data Agent understands your business data, investigates what's happening, 
+            and turns complex analysis into clear business intelligence.
+          </p>
+
+          {/* CTA */}
+          <button 
+            className="cta"
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#000000',
+              fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif',
+              fontWeight: 700,
+              fontSize: 'clamp(13.5px, 1.5vw, 14.5px)',
+              padding: 'clamp(11px, 1.6vh, 13px) clamp(22px, 3vw, 28px)',
+              borderRadius: '999px',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.2), 0 0 30px rgba(255,255,255,0.4), 0 0 60px rgba(100,100,255,0.2), 0 0 90px rgba(255,100,100,0.1)',
+              transition: 'all 0.3s'
+            } as React.CSSProperties}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-3px) scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.3), 0 0 40px rgba(255,255,255,0.6), 0 0 80px rgba(100,100,255,0.3), 0 0 120px rgba(255,100,100,0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0) scale(1)';
+              e.currentTarget.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.2), 0 0 30px rgba(255,255,255,0.4), 0 0 60px rgba(100,100,255,0.2), 0 0 90px rgba(255,100,100,0.1)';
+            }}
+            onClick={() => window.location.assign('/signup')}
+          >
+            Get Started
+          </button>
+        </div>
+
+        {/* Stats Footer */}
+        <div 
+          ref={statsRef}
+          className="stats-footer"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            maxWidth: '920px',
+            width: '100%',
+            gap: 'clamp(16px, 2vw, 24px)' as any,
+            marginTop: 'auto',
+            padding: 'clamp(20px, 3vw, 32px)',
+            backgroundColor: 'rgba(20, 20, 30, 0.7)',
+            borderRadius: 'clamp(16px, 2vw, 24px)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.4), 0 0 60px rgba(100,100,255,0.15)'
+          } as React.CSSProperties}
+        >
+          {[
+            { icon: '<', target: 2.3, suffix: 's', decimals: 1, label: 'Avg Investigation Time' },
+            { icon: '%', target: 94, suffix: '%', decimals: 0, label: 'Accuracy Rate' },
+            { icon: '*', target: 24, suffix: '/7', decimals: 0, label: 'Autonomous Monitoring' },
+            { icon: '#', target: 847, suffix: '+', decimals: 0, label: 'Data Points Analyzed' }
+          ].map((stat, i) => (
+            <div 
+              key={i}
+              className="stat-item"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                opacity: 1,
+                transform: 'translateY(0) scale(1)',
+                filter: 'blur(0)',
+                transition: 'all 0.3s',
+                cursor: 'default'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px) scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+              }}
+            >
+              <span 
+                className="stat-icon"
+                style={{
+                  fontFamily: '"BubbledotICG-FinePos", "Geist Pixel Circle", monospace',
+                  fontSize: 'clamp(22px, 3vw, 33px)',
+                  color: '#ffffff',
+                  marginBottom: '4px',
+                  textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 30px rgba(100,100,255,0.6)'
+                }}
+              >
+                {stat.icon}
+              </span>
+              <span 
+                id={`stat-${i}`}
+                className="stat-value"
+                style={{
+                  fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif',
+                  color: '#ffffff',
+                  fontSize: 'clamp(18px, 2.2vw, 26px)',
+                  letterSpacing: '-0.025em',
+                  fontVariantNumeric: 'tabular-nums',
+                  marginBottom: '2px',
+                  textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(100,100,255,0.5)',
+                  fontWeight: 600
+                }}
+              >
+                0{stat.suffix}
+              </span>
+              <span 
+                className="stat-label"
+                style={{
+                  color: '#e8e6e7',
+                  fontSize: 'clamp(11px, 1.2vw, 12.5px)',
+                  textShadow: '0 2px 6px rgba(0,0,0,0.8), 0 0 12px rgba(100,100,255,0.3)',
+                  fontWeight: 500
+                }}
+              >
+                {stat.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Fonts and Styles */}
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet"
+      />
+      <link
+        href="https://db.onlinewebfonts.com/c/8cb707a9b8a73f8a7403336b861c3074?family=BubbledotICG-FinePos"
+        rel="stylesheet"
+      />
+      <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
+        crossOrigin="anonymous"
+      />
+
+      <style jsx global>{`
+        @font-face {
+          font-family: 'Geist Pixel Circle';
+          src: url('/fonts/GeistPixel-Circle.woff2') format('woff2');
+          font-weight: 400;
+          font-display: swap;
+        }
+
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-18px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+
+
+
+
+
+
+
+
+
+
+        @media (max-width: 720px) {
+          .desktop-nav, .desktop-signin {
+            display: none !important;
+          }
+
+          .mobile-burger {
+            display: block !important;
+          }
+
+          .stats-footer {
+            grid-template-columns: repeat(2, 1fr);
+            padding: clamp(16px, 3vw, 24px);
+            border-radius: clamp(12px, 2vw, 16px);
+          }
+
+          .headline {
+            letter-spacing: -0.08em;
+            line-height: 1.05;
+          }
+
+          @media (max-width: 420px) {
+            .headline {
+              letter-spacing: -0.09em;
+              line-height: 1.04;
+            }
+          }
+        }
+
+
+
+        .mobile-link:hover {
+          background: #f5f5f5;
+        }
+
+        .mobile-signin:hover {
+          background: #323234;
+          color: #fff;
+        }
+
+        body.menu-open {
+          overflow: hidden;
+        }
+      `}</style>
+    </div>
+  );
 }
