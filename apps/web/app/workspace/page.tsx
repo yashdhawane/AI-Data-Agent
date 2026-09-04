@@ -109,6 +109,7 @@ export default function Home() {
     database: "customerdb",
     username: "",
     password: "",
+    connectionString: "",
   });
   const [memberForm, setMemberForm] = useState({
     email: "",
@@ -202,7 +203,7 @@ export default function Home() {
     setNotice("");
     const connectionUrl =
       sourceForm.type === "mongodb"
-        ? `mongodb://${encodeURIComponent(sourceForm.username)}:${encodeURIComponent(sourceForm.password)}@${sourceForm.host}:${sourceForm.port}/${encodeURIComponent(sourceForm.database)}`
+        ? sourceForm.connectionString.trim()
         : `postgresql://${encodeURIComponent(sourceForm.username)}:${encodeURIComponent(sourceForm.password)}@${sourceForm.host}:${sourceForm.port}/${encodeURIComponent(sourceForm.database)}?sslmode=disable`;
     try {
       const source = await api("/data-sources", {
@@ -224,6 +225,7 @@ export default function Home() {
         database: "customerdb",
         username: "",
         password: "",
+        connectionString: "",
       });
       setNotice(
         `${source.type === "mongodb" ? "MongoDB" : "PostgreSQL"} source added.`,
@@ -838,6 +840,23 @@ export default function Home() {
                           placeholder="Customer production DB"
                         />
                       </label>
+                      {sourceForm.type === "mongodb" ? (
+                        <label>
+                          Connection string
+                          <input
+                            required
+                            value={sourceForm.connectionString}
+                            onChange={(e) =>
+                              setSourceForm({
+                                ...sourceForm,
+                                connectionString: e.target.value,
+                              })
+                            }
+                            placeholder="mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/databaseName"
+                          />
+                        </label>
+                      ) : (
+                        <>
                       <div className={styles.fieldGrid}>
                         <label>
                           Host
@@ -914,6 +933,8 @@ export default function Home() {
                           placeholder="Database password"
                         />
                       </label>
+                        </>
+                      )}
                       <button className={styles.primaryButton} type="submit">
                         Test and connect <span>→</span>
                       </button>
