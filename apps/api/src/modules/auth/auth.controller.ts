@@ -4,7 +4,13 @@ import type { AuthenticatedRequest } from "../../infrastructure/security/auth.mi
 import { AuthService } from "./auth.service.js";
 
 const authService = new AuthService();
-const cookieOptions = "HttpOnly; Path=/; SameSite=Lax; Max-Age=86400";
+const cookieOptions = [
+  "HttpOnly",
+  "Path=/",
+  process.env.NODE_ENV === "production" ? "SameSite=None" : "SameSite=Lax",
+  ...(process.env.NODE_ENV === "production" ? ["Secure"] : []),
+  "Max-Age=86400",
+].join("; ");
 
 function requiredString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -31,7 +37,8 @@ export async function login(req: Request, res: Response): Promise<void> {
 }
 
 export function logout(_req: Request, res: Response): void {
-  res.setHeader("Set-Cookie", "access_token=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0");
+  const logoutCookie = cookieOptions.replace("Max-Age=86400", "Max-Age=0");
+  res.setHeader("Set-Cookie", `access_token=; ${logoutCookie}`);
   res.status(204).send();
 }
 

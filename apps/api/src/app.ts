@@ -19,13 +19,25 @@ import organizationRouter from "./modules/organization/organization.routes.js";
 export function createApp(): Express {
   const app = express();
 
-  const allowedOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
+  const allowedOrigins = (process.env.WEB_ORIGIN ?? "http://localhost:3000")
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean);
   const windowMs = Number(process.env.RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000);
   const maxRequests = Number(process.env.RATE_LIMIT_MAX ?? 300);
 
   app.disable("x-powered-by");
   app.use(helmet());
-  app.use(cors({ origin: allowedOrigin, credentials: true }));
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error("Origin is not allowed by CORS"));
+    },
+    credentials: true,
+  }));
   app.use(express.json({ limit: "100kb" }));
   app.use(rateLimit({
     windowMs: Number.isFinite(windowMs) && windowMs > 0 ? windowMs : 15 * 60 * 1000,
