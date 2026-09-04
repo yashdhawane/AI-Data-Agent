@@ -17,6 +17,7 @@ model Organization {
   id        String   @id @default(cuid())
   name      String
   normalizedName String @unique
+  plan      OrganizationPlan @default(SMALL)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -24,6 +25,12 @@ model Organization {
   dataSources DataSource[]
   relationships DataRelationship[]
   businessContext BusinessContext?
+}
+
+enum OrganizationPlan {
+  SMALL
+  MID_SCALE
+  ENTERPRISE
 }
 
 model User {

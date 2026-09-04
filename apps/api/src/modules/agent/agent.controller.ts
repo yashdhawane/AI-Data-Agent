@@ -34,7 +34,7 @@ export async function executeAgentQuery(
   }
 
   const result = await agentService.execute({
-    dataSourceId: dataSourceId.trim(),
+    dataSourceId: dataSourceId.trim() as string | "all",
     question: question.trim(),
   }, req.user.organizationId);
 

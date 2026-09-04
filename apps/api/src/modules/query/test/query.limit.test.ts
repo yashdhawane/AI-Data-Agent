@@ -46,13 +46,11 @@ describe("applyQueryLimit", () => {
     );
   });
 
-  it("rejects multiple statements", async () => {
-    await expect(
-      applyQueryLimit(
-        "SELECT * FROM customers; SELECT * FROM customers",
-      ),
-    ).rejects.toThrow(
-      "Multiple SQL statements are not allowed",
+  it("limits multiple read-only statements", async () => {
+    const result = await applyQueryLimit(
+      "SELECT * FROM customers; SELECT * FROM customers",
     );
+
+    expect(result.match(/LIMIT 1000/g)).toHaveLength(2);
   });
 });

@@ -1,5 +1,5 @@
 export interface AgentQueryRequest {
-  dataSourceId: string;
+  dataSourceId: string | "all";
   question: string;
 }
 

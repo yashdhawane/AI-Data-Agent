@@ -36,12 +36,9 @@ describe("validateReadOnlySql", () => {
     ).toThrow("Only SELECT queries are allowed");
   });
 
-  it("rejects multiple statements", () => {
-    expect(() =>
-      validateReadOnlySql(
-        "SELECT * FROM customers; SELECT * FROM customers",
-      ),
-    ).toThrow("Multiple SQL statements are not allowed");
+  it("allows multiple read-only statements", () => {
+    expect(validateReadOnlySql("SELECT * FROM customers; SELECT * FROM orders"))
+      .toBe("SELECT * FROM customers; SELECT * FROM orders");
   });
 
   it("rejects invalid SQL", () => {
@@ -139,6 +136,6 @@ it("rejects multiple statements containing a write", () => {
     validateReadOnlySql(
       "SELECT * FROM customers; DELETE FROM customers",
     ),
-  ).toThrow("Multiple SQL statements are not allowed");
+  ).toThrow("Only SELECT queries are allowed");
 });
 });

@@ -34,17 +34,15 @@ export function validateReadOnlySql(sql: string): string {
 
   const statements = parsed.stmts ?? [];
 
-  if (statements.length !== 1) {
+  if (statements.length === 0) {
     throw new AppError(
-      "Multiple SQL statements are not allowed",
+      "A SQL query is required",
       400,
-      "MULTIPLE_SQL_STATEMENTS",
+      "SQL_QUERY_REQUIRED",
     );
   }
 
-  const statement = statements[0]?.stmt;
-
-  if (!statement || !("SelectStmt" in statement)) {
+  if (statements.some(({ stmt }) => !stmt || !("SelectStmt" in stmt))) {
     throw new AppError(
       "Only SELECT queries are allowed",
       400,

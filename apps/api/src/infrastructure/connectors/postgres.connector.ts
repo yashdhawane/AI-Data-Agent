@@ -23,7 +23,9 @@ export class PostgresConnector implements DatabaseConnector {
     params: unknown[] = [],
   ): Promise<T[]> {
     const result = await this.pool.query<T>(sql, params);
-    return result.rows;
+    return Array.isArray(result)
+      ? result.flatMap((statement) => statement.rows)
+      : result.rows;
   }
 
   async close(): Promise<void> {

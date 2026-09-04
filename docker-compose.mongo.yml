@@ -1,0 +1,17 @@
+services:
+  mongodb:
+    image: mongo:8
+    container_name: ai-data-agent-mongo-auth
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongo-admin
+      MONGO_INITDB_ROOT_PASSWORD: mongo-admin-password
+      MONGO_INITDB_DATABASE: customerdb
+    volumes:
+      - mongo-data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+volumes:
+  mongo-data:

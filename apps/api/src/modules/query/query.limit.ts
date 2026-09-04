@@ -18,20 +18,15 @@ export async function applyQueryLimit(sql: string): Promise<string> {
 
   const statements = parsed.stmts ?? [];
 
-  if (statements.length !== 1) {
+  if (statements.length === 0) {
     throw new AppError(
-      "Multiple SQL statements are not allowed",
+      "A SQL query is required",
       400,
-      "MULTIPLE_SQL_STATEMENTS",
+      "SQL_QUERY_REQUIRED",
     );
   }
 
-  const statement = statements[0]?.stmt;
-
-  if (
-    !statement ||
-    !("SelectStmt" in statement)
-  ) {
+  if (statements.some(({ stmt }) => !stmt || !("SelectStmt" in stmt))) {
     throw new AppError(
       "Only SELECT queries are allowed",
       400,
@@ -39,37 +34,40 @@ export async function applyQueryLimit(sql: string): Promise<string> {
     );
   }
 
-  const selectStatement = statement.SelectStmt;
+  let changed = false;
+  for (const parsedStatement of statements) {
+    const statement = parsedStatement.stmt;
+    if (!statement || !("SelectStmt" in statement)) continue;
+    const selectStatement = statement.SelectStmt;
 
-  const existingLimit =
-    "limitCount" in selectStatement
-      ? selectStatement.limitCount
-      : undefined;
+    const existingLimit =
+      "limitCount" in selectStatement
+        ? selectStatement.limitCount
+        : undefined;
 
-  const existingLimitValue =
-    existingLimit &&
-    "A_Const" in existingLimit &&
-    existingLimit.A_Const &&
-    "ival" in existingLimit.A_Const &&
-    existingLimit.A_Const.ival &&
-    "ival" in existingLimit.A_Const.ival
-      ? existingLimit.A_Const.ival.ival
-      : undefined;
+    const existingLimitValue =
+      existingLimit &&
+      "A_Const" in existingLimit &&
+      existingLimit.A_Const &&
+      "ival" in existingLimit.A_Const &&
+      existingLimit.A_Const.ival &&
+      "ival" in existingLimit.A_Const.ival
+        ? existingLimit.A_Const.ival.ival
+        : undefined;
 
-  if (
-    typeof existingLimitValue === "number" &&
-    existingLimitValue <= MAX_ROWS
-  ) {
-    return sql.trim().replace(/;\s*$/, "");
+    if (!(typeof existingLimitValue === "number" && existingLimitValue <= MAX_ROWS)) {
+      selectStatement.limitCount = {
+        A_Const: {
+          ival: {
+            ival: MAX_ROWS,
+          },
+        },
+      };
+      changed = true;
+    }
   }
 
-  selectStatement.limitCount = {
-    A_Const: {
-      ival: {
-        ival: MAX_ROWS,
-      },
-    },
-  };
+  if (!changed) return sql.trim().replace(/;\s*$/, "");
 
   return (await deparse(parsed))
     .trim()

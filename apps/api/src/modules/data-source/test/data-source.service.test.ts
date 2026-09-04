@@ -2,6 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { prismaMock } = vi.hoisted(() => ({
   prismaMock: {
+    organization: {
+      findUnique: vi.fn().mockResolvedValue({
+        plan: "SMALL",
+        _count: { dataSources: 0 },
+      }),
+    },
     dataSource: {
       create: vi.fn(),
     },
@@ -97,7 +103,7 @@ describe("DataSourceService", () => {
     const result = await service.create(
       "Analytics DB",
       "mongodb",
-      "mongodb://example",
+      "mongodb://readonly:password@example/customerdb",
       "org-1",
     );
 
@@ -107,7 +113,7 @@ describe("DataSourceService", () => {
       data: {
         name: "Analytics DB",
         type: "mongodb",
-        connectionUrl: "encrypted:mongodb://example",
+        connectionUrl: "encrypted:mongodb://readonly:password@example/customerdb",
         organization: {
           connect: {
             id: "org-1",
@@ -142,5 +148,14 @@ describe("DataSourceService", () => {
         }),
       }),
     );
+  });
+
+  it("requires MongoDB credentials", async () => {
+    await expect(service.create(
+      "Unauthenticated DB",
+      "mongodb",
+      "mongodb://example/customerdb",
+      "org-1",
+    )).rejects.toMatchObject({ code: "MONGODB_CREDENTIALS_REQUIRED" });
   });
 });

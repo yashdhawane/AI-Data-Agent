@@ -24,7 +24,12 @@ export class InsightService {
           question: input.question,
           businessContext: input.businessContext ?? "No business context configured.",
           generatedQuery: input.sql,
-          result: { columns: input.columns, rows: input.rows, rowCount: input.rows.length },
+          result: {
+            columns: input.columns,
+            rows: input.rows.slice(0, 200),
+            rowCount: input.rows.length,
+            note: input.rows.length > 200 ? "Only the first 200 rows were supplied for insight generation." : undefined,
+          },
         }),
         responseSchema: {
           type: "object",

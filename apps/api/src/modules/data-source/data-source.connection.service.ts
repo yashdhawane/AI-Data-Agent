@@ -20,7 +20,7 @@ export class DataSourceConnectionService {
       throw new AppError("Data source not found", 404, "DATA_SOURCE_NOT_FOUND");
     }
 
-    if (dataSource.type !== "postgresql") {
+    if (dataSource.type !== "postgresql" && dataSource.type !== "mongodb") {
       throw new Error(`Unsupported data source type: ${dataSource.type}`);
     }
 
@@ -32,7 +32,7 @@ export class DataSourceConnectionService {
     try {
         await connector.testConnection();
     } catch (error) {
-      console.error("PostgreSQL connection error:", error);
+      console.error(`${dataSource.type} connection error:`, error);
 
       if (error && typeof error === "object" && "code" in error && error.code === "3D000") {
         throw new AppError(
@@ -55,6 +55,14 @@ export class DataSourceConnectionService {
           "PostgreSQL rejected the credentials. Check the username and password in the connection URL.",
           400,
           "POSTGRES_INVALID_CREDENTIALS",
+        );
+      }
+
+      if (dataSource.type === "mongodb" && error && typeof error === "object" && "code" in error && error.code === 18) {
+        throw new AppError(
+          "MongoDB rejected the credentials. Check the username, password, and authentication database.",
+          400,
+          "MONGODB_INVALID_CREDENTIALS",
         );
       }
 

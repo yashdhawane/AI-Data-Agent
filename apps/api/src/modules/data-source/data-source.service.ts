@@ -3,6 +3,7 @@ import { encrypt } from "../../infrastructure/security/encryption.js";
 import { DataSourceType } from "../../generated/prisma/enums.js";
 import { DatabaseConnectorFactory } from "../../infrastructure/connectors/database-connector.factory.js";
 import { AppError } from "../../infrastructure/http/app-error.js";
+import { assertCanAddDataSource } from "../organization/organization.plan.js";
 
 export class DataSourceService {
   async list(organizationId: string) {
@@ -19,6 +20,20 @@ export class DataSourceService {
     connectionUrl: string,
     organizationId: string,
   ) {
+    await assertCanAddDataSource(organizationId);
+    if (type === "mongodb") {
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(connectionUrl);
+      } catch {
+        throw new AppError("Invalid MongoDB connection URL", 400, "INVALID_MONGODB_CONNECTION_URL");
+      }
+
+      if (!parsedUrl.username || !parsedUrl.password) {
+        throw new AppError("MongoDB username and password are required", 400, "MONGODB_CREDENTIALS_REQUIRED");
+      }
+    }
+
     const connector = DatabaseConnectorFactory.create(type as DataSourceType, connectionUrl);
     try {
       await connector.testConnection();
