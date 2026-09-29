@@ -1,159 +1,271 @@
-# Turborepo starter
+# AI Data Agent
 
-This Turborepo starter is maintained by the Turborepo core team.
+An intelligent data intelligence platform that acts as a senior-level data analyst for your business databases. AI Data Agent understands, investigates, analyzes, explains, monitors, and communicates data from various database types, transforming complex data into clear business intelligence.
 
-## Using this example
+## 🚀 Overview
 
-Run the following command:
+AI Data Agent is more than just a Text-to-SQL tool. It's a comprehensive data intelligence platform designed to:
 
-```sh
-npx create-turbo@latest
+- **Understand** your business data and context
+- **Investigate** what's happening in your databases
+- **Analyze** complex relationships and patterns
+- **Explain** findings in business-friendly language
+- **Monitor** data changes autonomously
+- **Communicate** insights through natural language
+
+## 🏗️ Architecture
+
+This is a monorepo built with Turborepo, consisting of:
+
+### Applications
+
+- **`apps/api`** - Express.js backend API with TypeScript, Prisma ORM, and Gemini LLM integration
+- **`apps/web`** - Next.js 16 frontend with React 19 and TypeScript
+
+### Shared Packages
+
+- **`packages/ui`** - Shared React UI components
+- **`packages/eslint-config`** - ESLint configurations for the monorepo
+- **`packages/typescript-config`** - TypeScript configurations for the monorepo
+
+## 🛠️ Tech Stack
+
+### Backend (`apps/api`)
+- **Framework**: Express.js with TypeScript
+- **Database**: PostgreSQL (app data) with Prisma ORM
+- **Client Database Support**: PostgreSQL and MongoDB
+- **AI/ML**: Google Gemini LLM for query generation and insight generation
+- **Security**: Helmet, CORS, rate limiting, credential encryption
+- **Architecture**: Modular design with separate modules for auth, data sources, queries, metadata, relationships, business context, and organization management
+
+### Frontend (`apps/web`)
+- **Framework**: Next.js 16 with App Router
+- **UI**: React 19 with TypeScript
+- **Styling**: CSS Modules and custom fonts
+- **Features**: Authentication, workspace management, data source integration
+
+### Development Tools
+- **Build System**: Turborepo for monorepo management
+- **Package Manager**: pnpm
+- **Language**: TypeScript across all packages
+- **Linting**: ESLint with custom configurations
+- **Formatting**: Prettier
+
+## 📋 Core Features
+
+### Data Intelligence Pipeline
+1. **Intent Classification** - Understand user query intent
+2. **Metadata Retrieval** - Fetch database schema and relationships
+3. **SQL Generation** - Generate optimized SQL queries using AI
+4. **Query Execution** - Execute queries with read-only enforcement
+5. **Insight Generation** - Transform results into business intelligence
+
+### Security & Organization
+- **Read-Only Enforcement** - All queries are read-only by default
+- **Credential Encryption** - Database credentials are encrypted at rest
+- **Organization Isolation** - Complete data separation between organizations
+- **Query Validation** - Validates queries before execution
+- **Role-Based Access** - Admin and member roles with appropriate permissions
+
+### Database Support
+- **PostgreSQL** - Full support with schema introspection
+- **MongoDB** - Support for document-based databases
+- **Relationship Discovery** - Automatic detection of relationships between data sources
+
+## 🚦 Getting Started
+
+### Prerequisites
+- Node.js >= 18
+- pnpm (recommended) or npm
+- PostgreSQL database for application data
+- Optional: MongoDB for client data sources
+
+### Installation
+
+1. Clone the repository and install dependencies:
+```bash
+git clone <repository-url>
+cd AI-Data-Agent
+pnpm install
 ```
 
-## What's inside?
-
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+2. Set up environment variables:
+```bash
+cp apps/api/.env.example apps/api/.env
 ```
 
-Without global `turbo`, use your package manager:
+Configure the following environment variables in `apps/api/.env`:
+- `DATABASE_URL` - PostgreSQL connection string for app data
+- `GEMINI_API_KEY` - Google Gemini API key
+- `WEB_ORIGIN` - Frontend URL (default: http://localhost:3000)
+- `PORT` - API port (default: 4000)
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+3. Run database migrations:
+```bash
+cd apps/api
+npx prisma generate
+npx prisma db push
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### Development
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
+Run both applications in development mode:
+```bash
+# From root directory
+pnpm dev
 ```
 
-Without global `turbo`:
+Or run individual applications:
+```bash
+# API only
+pnpm --filter api dev
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+# Web only
+pnpm --filter web dev
 ```
 
-### Develop
+The API will be available at `http://localhost:4000` and the web app at `http://localhost:3000`.
 
-To develop all apps and packages, run the following command:
+### Building
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
+Build all applications:
+```bash
+pnpm build
 ```
 
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
+Build specific application:
+```bash
+pnpm --filter api build
+pnpm --filter web build
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## 📁 Project Structure
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
+```
+AI-Data-Agent/
+├── apps/
+│   ├── api/                 # Express.js backend
+│   │   ├── src/
+│   │   │   ├── modules/     # Feature modules
+│   │   │   │   ├── agent/   # AI agent logic
+│   │   │   │   ├── auth/    # Authentication
+│   │   │   │   ├── data-source/ # Database connections
+│   │   │   │   ├── query/   # Query execution
+│   │   │   │   ├── metadata/ # Schema metadata
+│   │   │   │   ├── relationship/ # Data relationships
+│   │   │   │   ├── business-context/ # Business context
+│   │   │   │   └── organization/ # Org management
+│   │   │   ├── infrastructure/ # Infrastructure code
+│   │   │   └── generated/   # Prisma generated client
+│   │   ├── prisma/          # Database schema
+│   │   └── .env             # Environment variables
+│   └── web/                 # Next.js frontend
+│       ├── app/             # App router pages
+│       │   ├── landing/     # Landing page
+│       │   ├── signin/      # Sign in page
+│       │   ├── signup/      # Sign up page
+│       │   └── workspace/   # Main workspace
+│       └── public/          # Static assets
+├── packages/
+│   ├── ui/                  # Shared UI components
+│   ├── eslint-config/      # ESLint configurations
+│   └── typescript-config/  # TypeScript configurations
+└── turbo.json              # Turborepo configuration
 ```
 
-Without global `turbo`:
+## 🔐 Security Features
 
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+- **Authentication**: JWT-based authentication system
+- **Authorization**: Role-based access control (Admin/Member)
+- **Data Encryption**: Credentials encrypted at rest
+- **Rate Limiting**: Configurable rate limiting per origin
+- **CORS Protection**: Configurable CORS for frontend integration
+- **Query Safety**: Read-only enforcement and query validation
+- **Input Validation**: JSON payload size limits (100kb)
+
+## 🗄️ Database Schema
+
+The application uses PostgreSQL with the following main entities:
+
+- **Organization** - Tenant organizations with plans (Small, Mid-scale, Enterprise)
+- **User** - User accounts with email authentication and roles
+- **DataSource** - Database connections (PostgreSQL/MongoDB)
+- **DataRelationship** - Discovered relationships between data sources
+- **BusinessContext** - Organization-specific business context for AI
+
+## 🧪 Testing
+
+Run tests for the API:
+```bash
+pnpm --filter api test
 ```
 
-### Remote Caching
+## 📝 API Endpoints
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+### Authentication
+- `POST /auth/register` - Register new user
+- `POST /auth/login` - Login user
+- `POST /auth/logout` - Logout user
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+### Data Sources
+- `GET /data-sources` - List data sources
+- `POST /data-sources` - Add data source
+- `DELETE /data-sources/:id` - Remove data source
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+### Query & Analysis
+- `POST /query` - Execute natural language query
+- `POST /agent/chat` - Chat with AI agent
+- `GET /metadata/:dataSourceId` - Get database metadata
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+### Organization
+- `GET /organization` - Get organization details
+- `PUT /organization` - Update organization
+- `PUT /organization/context` - Update business context
 
-```sh
-cd my-turborepo
-turbo login
+## 🚀 Deployment
+
+### Production Build
+```bash
+pnpm build
 ```
 
-Without global `turbo`, use your package manager:
+### Running in Production
+```bash
+# API
+cd apps/api
+pnpm start
 
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
+# Web
+cd apps/web
+pnpm start
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
+### Docker Support
+MongoDB Docker configuration is available:
+```bash
+docker-compose -f docker-compose.mongo.yml up -d
 ```
 
-Without global `turbo`:
+## 🤝 Contributing
 
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and linting
+5. Submit a pull request
 
-## Useful Links
+## 📄 License
 
-Learn more about the power of Turborepo:
+This project is licensed under the MIT License.
 
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+## 🔗 Useful Links
+
+- [Turborepo Documentation](https://turborepo.dev/docs)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [Express.js Documentation](https://expressjs.com/)
+- [Google Gemini API](https://ai.google.dev/gemini-api/docs)
+
+## 📞 Support
+
+For issues, questions, or contributions, please open an issue on the repository or contact the development team.
